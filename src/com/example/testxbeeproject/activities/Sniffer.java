@@ -1,5 +1,7 @@
 package com.example.testxbeeproject.activities;
 
+import java.util.ArrayList;
+
 import com.example.xbee_i2r.*;
 import com.example.JSON_format.RxResponseJSON;
 import com.google.gson.Gson;
@@ -13,25 +15,30 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.widget.TextView;
+import android.widget.ListView;
 /** Test Activity class that prints out the parsed data into a textView
  * 
  * @author Nirav Gandhi A0088471@nus.edu.sg
  *
  */
-public class SnifferTest extends Activity{
+public class Sniffer extends Activity{
 
-	protected static final String TAG = "com.example.test.SnifferTest";
+	protected static final String TAG = "com.example.test.Sniffer";
 	private BroadcastReceiver receiver;
-	private TextView responseText;
 	private Gson gson;
 	private Context context;
+	private ArrayList<RxResponseJSON> responseList;
+	private SnifferAdapter adapter;
+	private ListView responseListView;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.sniffer_layout);
 		context = this;
-		responseText = (TextView) findViewById(R.id.responseTextView);
+		responseList = new ArrayList<RxResponseJSON>();
+		adapter = new SnifferAdapter(this,responseList);
+		responseListView = (ListView) findViewById(R.id.responseListView);
+		responseListView.setAdapter(adapter);
 		gson = new Gson();
 	}
 
@@ -50,11 +57,11 @@ public class SnifferTest extends Activity{
 		case R.id.tabSniffer:
 			break;
 		case R.id.tabXCTU:
-			intent = new Intent(context,XCTUtest.class);
+			intent = new Intent(context,XCTU.class);
 			startActivity(intent);
 			break;
 		case R.id.tabND:
-			intent = new Intent(context,NodeDiscoveryTest.class);
+			intent = new Intent(context,NodeDiscovery.class);
 			startActivity(intent);
 			break;
 		case R.id.settings:
@@ -76,29 +83,8 @@ public class SnifferTest extends Activity{
 				Log.d(TAG,"In Nirav onReceive()");
 				String[] JSONResponses = intent.getStringArrayExtra("JSONRxResponse");
 				for(int i=0;i<JSONResponses.length;i++){
-					Log.d(TAG,"Extra string is" + JSONResponses[i]);
-				}
-				for(int i=0;i<JSONResponses.length;i++){
-					String printString = new String();
-					RxResponseJSON responseJSON = gson.fromJson(JSONResponses[i], RxResponseJSON.class);
-					String dl_frame_header = "DL FRAME HEADER" + "\n" +
-							"DL Version: " + responseJSON.getDl_version()
-							+ " Frame Type: " + responseJSON.getDl_frame_type()
-							+ " Source: " + responseJSON.getDl_source()
-							+ " Destination: " + responseJSON.getDl_dest()
-							+ " Sequence Number: " + responseJSON.getDl_seqNo();
-					printString = printString.concat(dl_frame_header);
-					String nwHdr ="\n" + "NW_HDR " + "\n" 
-							+ " Source:" + responseJSON.getNw_source()
-							+ " Destination:" + responseJSON.getNw_dest()
-							+ " Version:" +	responseJSON.getNw_version()
-									+ " Prototype:" + responseJSON.getNw_proto()
-											+ " Packet Type:" + responseJSON.getNw_pkt_type();
-					printString = printString.concat(nwHdr);
-					String helloSeqNum = "\n" + "HELLO SEQ NUM: " + responseJSON.getHello_seq_num();
-					String unixTime = "\n" + "UNIX TIME: " + responseJSON.getUnix_time();
-					printString = printString.concat(helloSeqNum + unixTime);
-					responseText.append(printString + "RSSI : " +  responseJSON.getRSSI());
+					responseList.add(gson.fromJson(JSONResponses[i], RxResponseJSON.class));
+					adapter.notifyDataSetChanged();
 				}
 			}
 			

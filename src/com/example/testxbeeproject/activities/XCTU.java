@@ -37,7 +37,7 @@ import android.widget.Toast;
  * @author Nirav Gandhi A0088471@nus.edu.sg
  *
  */
-public class XCTUtest extends Activity {
+public class XCTU extends Activity {
 
 	protected static final String TAG = "com.example.xbee_i2r_XCTUTest";
 	private BroadcastReceiver receiver;
@@ -143,13 +143,13 @@ public class XCTUtest extends Activity {
 		Intent intent;
 		switch(item.getItemId()){
 		case R.id.tabSniffer:
-			intent = new Intent(context,SnifferTest.class);
+			intent = new Intent(context,Sniffer.class);
 			startActivity(intent);
 			break;
 		case R.id.tabXCTU:
 			break;
 		case R.id.tabND:
-			intent = new Intent(context,NodeDiscoveryTest.class);
+			intent = new Intent(context,NodeDiscovery.class);
 			startActivity(intent);
 			break;
 		case R.id.settings:

@@ -1,11 +1,15 @@
 package com.example.testxbeeproject.activities;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
+
 import com.example.xbee_i2r.*;
 import com.ftdi.j2xx.FT_Device;
 import com.google.gson.Gson;
 import com.example.JSON_format.XCTUValues;
-import com.example.testxbeeproject.activities.XCTUtest;
+import com.example.testxbeeproject.activities.XCTU;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
@@ -15,7 +19,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.Bundle;
-import android.os.Handler;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -25,6 +28,7 @@ import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -33,12 +37,12 @@ import android.widget.Toast;
  * @author Nirav Gandhi A0088471@nus.edu.sg
  *
  */
-public class NodeDiscoveryTest extends Activity{
+public class NodeDiscovery extends Activity{
 
 	protected static final String TAG = "com.example.NodeDiscoveryTest";
 	private BroadcastReceiver receiver;
 	private Gson gson;
-	private Button refreshButton;
+	private ImageButton refreshButton;
 	private SendCommands send;
 	private SharedPreferences pref;
 	private Editor editor;
@@ -53,8 +57,9 @@ public class NodeDiscoveryTest extends Activity{
 	private ArrayList<Node> nodeList;
 	private ListView nodeListView;
 	private LazyAdapter adapter;
-	private TextView temp;
+	private TextView lastSeen;
 	private static ProgressDialog progressDialog;
+	private static Object object;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -62,9 +67,9 @@ public class NodeDiscoveryTest extends Activity{
 		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
 		setContentView(R.layout.node_discovery_layout);
 		nodeListView = (ListView) findViewById(R.id.nodeListView);
-		refreshButton = (Button) findViewById(R.id.refreshButton);
+		refreshButton = (ImageButton) findViewById(R.id.refreshButton);
 		checkAllChannels = (CheckBox) findViewById(R.id.checkAll);
-		temp = (TextView) findViewById(R.id.temporary_tv);
+		lastSeen = (TextView) findViewById(R.id.refresh_tv);
 		gson = new Gson();
 		nodeList = new ArrayList<Node>();
 		adapter = new LazyAdapter(this,nodeList);
@@ -73,12 +78,21 @@ public class NodeDiscoveryTest extends Activity{
 		editor = pref.edit();
 		counter = 0;
 		int tempCounter = 0;
-		int int1,int2;
+		String dateString = null;
+		int int1,int2,int3;
+		if((dateString = pref.getString("Date", null)) !=null ){
+			lastSeen.setText("  Last refreshed : " + "\n" + dateString);
+		}
 		while((int1 = pref.getInt(Integer.toString(tempCounter) + "0", -1)) != -1){
 			int2 = pref.getInt(Integer.toString(tempCounter) + "1", -1);
+			int3 = pref.getInt(Integer.toString(tempCounter)+"2", -1);
 			Node tempNode = new Node();
 			tempNode.setAddr16(new int[]{int1,int2});
+			tempNode.setChannel(int3);
+			int3 = pref.getInt(Integer.toString(tempCounter)+"3", -1);
+			tempNode.setRssi(int3);
 			tempCounter++;
+			tempNode.setBatteryPerc(-1);
 			nodeList.add(tempNode);
 			adapter.notifyDataSetChanged();
 		}
@@ -98,11 +112,13 @@ public class NodeDiscoveryTest extends Activity{
 					Node node = gson.fromJson(intent.getStringExtra("JSONAtResponse"), Node.class);			
 					Log.d(TAG,"JSON ND Response" + intent.getStringExtra("JSONAtResponse"));
 					nodeList.add(node);
-					/*editor.putInt(Integer.toString(counter) + "0", node.getAddr16()[0]);
+					editor.putInt(Integer.toString(counter) + "0", node.getAddr16()[0]);
 					editor.putInt(Integer.toString(counter) + "1", node.getAddr16()[1]);
+					editor.putInt(Integer.toString(counter) + "2", node.getChannel());
+					editor.putInt(Integer.toString(counter) + "3", node.getRssi());
 					counter++;
 					editor.commit();
-					AlarmManager mgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+					/*AlarmManager mgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
 					Intent i = new Intent(context,DeleteSharedPreferences.class);
 					PendingIntent pi = PendingIntent.getService(context, 0, i, 0);
 					Calendar cal = Calendar.getInstance();
@@ -133,14 +149,10 @@ public class NodeDiscoveryTest extends Activity{
 						Node node = nodeList.get(i);
 						int[] addr = intent.getIntArrayExtra("MYAddress");
 						if((node.getAddr16()[0]*256 + node.getAddr16()[1]) == (addr[0]*256 + addr[1])){
-							Log.d(TAG,"Address in nodeList " + Arrays.toString(node.getAddr16()));
-							Log.d(TAG,"Address received from intent" + Arrays.toString(addr));
-							Log.d(TAG,"Match found at " + i);
 							View view = nodeListView.getChildAt(i - nodeListView.getFirstVisiblePosition());
 							TextView batteryText = (TextView) view.findViewById(R.id.etBattery);
 							batteryText.setText("" + intent.getIntExtra("battery", -1) + "%");
-							temp.setText("Pos:" + i);
-							temp.append("" + nodeListView.indexOfChild(view));
+							node.setBatteryPerc(intent.getIntExtra("battery", -1));
 							break;
 						}
 					}
@@ -148,7 +160,7 @@ public class NodeDiscoveryTest extends Activity{
 					e.printStackTrace();
 					Toast.makeText(context, "Exception", Toast.LENGTH_SHORT).show();
 				}
-				progressDialog.dismiss();
+				dismissProgressDialog();
 			}
 			
 		};
@@ -168,6 +180,12 @@ public class NodeDiscoveryTest extends Activity{
 			@Override
 			public void onClick(View v) {
 				if(InitializeDevice.isConnected()){
+					SimpleDateFormat dateTime = new SimpleDateFormat("dd/MM HH:mm:ss");
+					String dateString = dateTime.format(new Date());
+					lastSeen.setText("  Last refreshed : " + "\n" + dateString);
+					
+					editor.putString("Date",dateString);
+					editor.commit();
 					if(!adapter.isEmpty()){
 						/*editor.clear();
 						editor.commit();*/
@@ -179,6 +197,7 @@ public class NodeDiscoveryTest extends Activity{
 					intent.putExtra("checkboxChecked", checkAllChannels.isChecked());
 					intent.putExtra("originalChannel", currentValues.getChannel());
 					intent.putExtra("hardware_version", currentValues.getHardwareVersion());
+					intent.putExtra("discoveryTime", currentValues.getNd_time());
 					setProgressBarIndeterminateVisibility(true);
 					startService(intent);
 					send.sendNDcommand(checkAllChannels.isChecked(),currentValues.getChannel(),currentValues.getHardwareVersion());
@@ -191,8 +210,9 @@ public class NodeDiscoveryTest extends Activity{
 			public void onItemClick(AdapterView<?> arg0, View view, int pos,
 					long arg3) {
 				if(InitializeDevice.isConnected()){
-					Intent intent = new Intent(context,RemoteXBeeInfoTest.class);
+					Intent intent = new Intent(context,RemoteXBeeInfo.class);
 					intent.putExtra("MYAddress", nodeList.get(pos).getAddr16());
+					intent.putExtra("channel",nodeList.get(pos).getChannel());
 					startActivity(intent);
 				}
 			}
@@ -210,11 +230,11 @@ public class NodeDiscoveryTest extends Activity{
 		Intent intent;
 		switch(item.getItemId()){
 		case R.id.tabSniffer:
-			intent = new Intent(context,SnifferTest.class);
+			intent = new Intent(context,Sniffer.class);
 			startActivity(intent);
 			break;
 		case R.id.tabXCTU:
-			intent = new Intent(context,XCTUtest.class);
+			intent = new Intent(context,XCTU.class);
 			startActivity(intent);
 			break;
 		case R.id.tabND:
@@ -227,8 +247,18 @@ public class NodeDiscoveryTest extends Activity{
 		return super.onMenuItemSelected(featureId, item);
 	}
 	
-	public static void showProgressDialog(){
-		progressDialog = ProgressDialog.show(context, "In progress", "Loading", true);
+	public static void showProgressDialog(Object o){
+		progressDialog = ProgressDialog.show(context, "In progress", "Retrieving", true);
+		object = o;
+	}
+	
+	public static void dismissProgressDialog(){
+		if(progressDialog !=null){
+			progressDialog.dismiss();
+			synchronized(object){
+				object.notify();
+			}
+		}
 	}
 
 	@Override
@@ -238,5 +268,8 @@ public class NodeDiscoveryTest extends Activity{
 		unregisterReceiver(receiver2);
 		unregisterReceiver(batteryInfoReceiver);
 		unregisterReceiver(NDFinishReceiver);
+		if(progressDialog!=null){
+			progressDialog.dismiss();
+		}
 	}
 }

@@ -17,7 +17,7 @@
         android:label="@string/app_name"
         android:theme="@style/AppTheme" >
         <activity
-            android:name="com.example.testxbeeproject.activities.XCTUtest"
+            android:name="com.example.testxbeeproject.activities.XCTU"
             android:label="@string/app_name" 
             android:uiOptions="splitActionBarWhenNarrow">
             <intent-filter>
@@ -31,7 +31,7 @@
                 android:resource="@xml/device_filter" />
         </activity>
          <activity
-            android:name="com.example.testxbeeproject.activities.NodeDiscoveryTest"
+            android:name="com.example.testxbeeproject.activities.NodeDiscovery"
             android:label="@string/app_name" 
             android:uiOptions="splitActionBarWhenNarrow">
             <intent-filter>
@@ -52,7 +52,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.example.testxbeeproject.activities.SnifferTest"
+            android:name="com.example.testxbeeproject.activities.Sniffer"
             android:label="@string/app_name" 
             android:uiOptions="splitActionBarWhenNarrow">
             <intent-filter>
@@ -61,7 +61,7 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.example.testxbeeproject.activities.RemoteXBeeInfoTest"
+            android:name="com.example.testxbeeproject.activities.RemoteXBeeInfo"
             android:label="@string/app_name" 
             android:uiOptions="splitActionBarWhenNarrow">
             <intent-filter>
