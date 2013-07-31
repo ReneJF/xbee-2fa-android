@@ -1,15 +1,11 @@
-package com.example.testxbeeproject.activities;
+package com.example.SDXbeta.activities;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 
 import com.example.xbee_i2r.*;
-import com.ftdi.j2xx.FT_Device;
 import com.google.gson.Gson;
 import com.example.JSON_format.XCTUValues;
-import com.example.testxbeeproject.activities.XCTU;
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
@@ -19,20 +15,21 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.os.Messenger;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.AdapterView.OnItemClickListener;
-import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.ImageButton;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
-/** Test Activity class that checks for all the nearby nodes and displays them in a list. 
+/** UI class that checks for all the nearby nodes and displays them in a list. 
  * 
  * @author Nirav Gandhi A0088471@nus.edu.sg
  *
@@ -40,36 +37,36 @@ import android.widget.Toast;
 public class NodeDiscovery extends Activity{
 
 	protected static final String TAG = "com.example.NodeDiscoveryTest";
-	private BroadcastReceiver receiver;
+	private BroadcastReceiver NDResponseReceiver;
+	private BroadcastReceiver xctuReceiver;
+	private BroadcastReceiver batteryInfoReceiver;
+	private BroadcastReceiver txResponseReceiver;
 	private Gson gson;
 	private ImageButton refreshButton;
-	private SendCommands send;
+	private SendCommands send; // an object of the class that sends commands to the XBee
 	private SharedPreferences pref;
-	private Editor editor;
-	private int counter;
-	private static Context context;
-	private FT_Device ftDev= null;
-	private CheckBox checkAllChannels;
-	private XCTUValues currentValues;
-	public BroadcastReceiver receiver2;
-	public BroadcastReceiver batteryInfoReceiver;
-	public BroadcastReceiver NDFinishReceiver;
-	private ArrayList<Node> nodeList;
-	private ListView nodeListView;
+	private Editor editor; // editor used to edit the shared preferences
+	private int counter; 
+	private static Context context; // Activity's context
+	private CheckBox checkAllChannels; // Checkbox for user to select whether all channels need to be checked.
+	private XCTUValues currentValues; // to store the XBEE register values when the activity was created. 
+	private ArrayList<Node> nodeList; // An ArrayList that stores all the nodes discovered. These nodes are stored as 'Node'.
+	private ListView nodeListView; 
 	private LazyAdapter adapter;
-	private TextView lastSeen;
+	private TextView lastRefreshed;
 	private static ProgressDialog progressDialog;
 	private static Object object;
+	private Handler handler;
+	private boolean txReceived;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		context = this;
-		requestWindowFeature(Window.FEATURE_INDETERMINATE_PROGRESS);
 		setContentView(R.layout.node_discovery_layout);
 		nodeListView = (ListView) findViewById(R.id.nodeListView);
 		refreshButton = (ImageButton) findViewById(R.id.refreshButton);
 		checkAllChannels = (CheckBox) findViewById(R.id.checkAll);
-		lastSeen = (TextView) findViewById(R.id.refresh_tv);
+		lastRefreshed = (TextView) findViewById(R.id.refresh_tv);
 		gson = new Gson();
 		nodeList = new ArrayList<Node>();
 		adapter = new LazyAdapter(this,nodeList);
@@ -80,9 +77,11 @@ public class NodeDiscovery extends Activity{
 		int tempCounter = 0;
 		String dateString = null;
 		int int1,int2,int3;
-		if((dateString = pref.getString("Date", null)) !=null ){
-			lastSeen.setText("  Last refreshed : " + "\n" + dateString);
+		if((dateString = pref.getString("Date", null)) != null ){
+			lastRefreshed.setText("  Last refreshed : " + "\n" + dateString); // Displays the date and time of the last 'Node Discovery' performed. 
 		}
+		
+		// The following while loop extracts previously saved nodes and displays them as a list.
 		while((int1 = pref.getInt(Integer.toString(tempCounter) + "0", -1)) != -1){
 			int2 = pref.getInt(Integer.toString(tempCounter) + "1", -1);
 			int3 = pref.getInt(Integer.toString(tempCounter)+"2", -1);
@@ -96,15 +95,25 @@ public class NodeDiscovery extends Activity{
 			nodeList.add(tempNode);
 			adapter.notifyDataSetChanged();
 		}
+		//Handler that dismisses the progress Dialog box on receiving a message. 
+		handler = new Handler(){
+			public void handleMessage(Message msg){
+				progressDialog.dismiss();
+			}
+		};
 	}
-
+	
 	@Override
 	protected void onStart() {
 		super.onStart();
-		ftDev = InitializeDevice.getDevice();
 		send = new SendCommands();
 		IntentFilter filter = new IntentFilter(ReadService.ND_RESPONSE_ACTION);
-		receiver = new BroadcastReceiver(){
+		
+		/** This receiver converts the intent string using the GSON - library into an object of 'Node'. This object is then added to the list.    
+		 * 
+		 */
+		
+		NDResponseReceiver = new BroadcastReceiver(){
 
 			@Override
 			public void onReceive(Context context, Intent intent) {
@@ -118,18 +127,32 @@ public class NodeDiscovery extends Activity{
 					editor.putInt(Integer.toString(counter) + "3", node.getRssi());
 					counter++;
 					editor.commit();
-					/*AlarmManager mgr = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
-					Intent i = new Intent(context,DeleteSharedPreferences.class);
-					PendingIntent pi = PendingIntent.getService(context, 0, i, 0);
-					Calendar cal = Calendar.getInstance();
-					cal.add(Calendar.MINUTE, 10);
-					mgr.set(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pi);*/
 					adapter.notifyDataSetChanged();
 				}
 			}
 		};
-		registerReceiver(receiver, filter);
-		receiver2 = new BroadcastReceiver(){
+		registerReceiver(NDResponseReceiver, filter);
+		
+		/**
+		 * 
+		 */
+		
+		txResponseReceiver = new BroadcastReceiver(){
+
+			@Override
+			public void onReceive(Context arg0, Intent intent) {
+				Toast.makeText(context, "TX Request received", Toast.LENGTH_SHORT).show();
+				txReceived = true;
+			}
+			
+		};
+		registerReceiver(txResponseReceiver,new IntentFilter(ReadService.TX_RECIEVED_ACTION));
+		
+		/** receives the current XCTUValues and puts them into currentValues.
+		 * 
+		 */
+		
+		xctuReceiver = new BroadcastReceiver(){
 
 			@Override
 			public void onReceive(Context context, Intent intent) {
@@ -138,11 +161,16 @@ public class NodeDiscovery extends Activity{
 			}
 			
 		};
-		registerReceiver(receiver2,new IntentFilter(ReadService.AT_RESPONSE_ACTION));
+		registerReceiver(xctuReceiver,new IntentFilter(ReadService.AT_RESPONSE_ACTION));
+		
+		/** receives the battery data and displays the percentage in the required field. 
+		 * 
+		 */
+		
 		batteryInfoReceiver = new BroadcastReceiver(){
 
 			@Override
-			public void onReceive(Context context, Intent intent) {
+			public void onReceive(Context arg0, Intent intent) {
 				Log.d(TAG,"Battery Info packet received");
 				try{
 					for(int i=0;i<nodeList.size();i++){
@@ -165,14 +193,8 @@ public class NodeDiscovery extends Activity{
 			
 		};
 		registerReceiver(batteryInfoReceiver, new IntentFilter(ReadService.BATTERY_INFO_ACTION));
-		NDFinishReceiver = new BroadcastReceiver(){
-
-			@Override
-			public void onReceive(Context context, Intent intent) {
-				setProgressBarIndeterminateVisibility(false);
-			}
-		};
-		registerReceiver(NDFinishReceiver,new IntentFilter(NDService.ACTION));
+		
+		// loading the currentValues in onStart()
 		if(InitializeDevice.isConnected()){
 			send.readXCTUValues();
 		}
@@ -182,28 +204,33 @@ public class NodeDiscovery extends Activity{
 				if(InitializeDevice.isConnected()){
 					SimpleDateFormat dateTime = new SimpleDateFormat("dd/MM HH:mm:ss");
 					String dateString = dateTime.format(new Date());
-					lastSeen.setText("  Last refreshed : " + "\n" + dateString);
-					
-					editor.putString("Date",dateString);
+					lastRefreshed.setText("  Last refreshed : " + "\n" + dateString); // changes the time the node list was refreshsed to current time. 
+					counter = 0;
+					editor.clear(); // The shared preferences are cleared up. 
+					editor.commit();
+					editor.putString("Date",dateString); 
 					editor.commit();
 					if(!adapter.isEmpty()){
-						/*editor.clear();
-						editor.commit();*/
 						nodeList.clear();
 						adapter.notifyDataSetChanged();
 					}
-					((LazyAdapter)adapter).setIsChecked(checkAllChannels.isChecked());
+					
+					Messenger messenger = new Messenger(handler); // Used for communication between the service and the NodeDiscovery activity. 
+					// Progress dialog is dismissed when a message is sent through the messenger
 					Intent intent = new Intent(context,NDService.class);
-					intent.putExtra("checkboxChecked", checkAllChannels.isChecked());
-					intent.putExtra("originalChannel", currentValues.getChannel());
-					intent.putExtra("hardware_version", currentValues.getHardwareVersion());
-					intent.putExtra("discoveryTime", currentValues.getNd_time());
-					setProgressBarIndeterminateVisibility(true);
+					intent.putExtra("checkboxChecked", checkAllChannels.isChecked());// To inform the service whether all the channels need to be checked. 
+					intent.putExtra("originalChannel", currentValues.getChannel());// The service reverts back to the original channel once ND is over
+					intent.putExtra("hardware_version", currentValues.getHardwareVersion());// No. of channels checked depends on the hardware version
+					intent.putExtra("discoveryTime", currentValues.getNd_time()); // Current discoveryTime
+					intent.putExtra("MESSENGER", messenger);
+					progressDialog = ProgressDialog.show(context, "Node Discovery", "Discovering..");
 					startService(intent);
-					send.sendNDcommand(checkAllChannels.isChecked(),currentValues.getChannel(),currentValues.getHardwareVersion());
 				}
 			}
 		});	
+		/**
+		 * Opens up the remoteXBeeInfo activity on itemClick
+		 */
 		nodeListView.setOnItemClickListener(new OnItemClickListener() {
 
 			@Override
@@ -224,7 +251,11 @@ public class NodeDiscovery extends Activity{
 		getMenuInflater().inflate(R.menu.main,menu);
 		return super.onCreateOptionsMenu(menu);
 	}
-
+	
+	/** Selection of activity on Menu-item press.  
+	 * 
+	 */
+	
 	@Override
 	public boolean onMenuItemSelected(int featureId, MenuItem item) {
 		Intent intent;
@@ -247,10 +278,20 @@ public class NodeDiscovery extends Activity{
 		return super.onMenuItemSelected(featureId, item);
 	}
 	
+	/** This function shows the progress dialog box.
+	 *  
+	 * @param o to notify the waiting thread that battery data has been received.  
+	 */
+
 	public static void showProgressDialog(Object o){
 		progressDialog = ProgressDialog.show(context, "In progress", "Retrieving", true);
 		object = o;
 	}
+	
+	/** The function is called when no battery data is received, but progress dialog 
+	 * needs to be removed from screen after time-out. 
+	 * 
+	 */
 	
 	public static void dismissProgressDialog(){
 		if(progressDialog !=null){
@@ -261,13 +302,16 @@ public class NodeDiscovery extends Activity{
 		}
 	}
 
+	/** All registers to be unregistered. 
+	 * 
+	 */
 	@Override
 	protected void onStop() {
 		super.onStop();
-		unregisterReceiver(receiver);
-		unregisterReceiver(receiver2);
+		unregisterReceiver(NDResponseReceiver);
+		unregisterReceiver(xctuReceiver);
 		unregisterReceiver(batteryInfoReceiver);
-		unregisterReceiver(NDFinishReceiver);
+		unregisterReceiver(txResponseReceiver);
 		if(progressDialog!=null){
 			progressDialog.dismiss();
 		}

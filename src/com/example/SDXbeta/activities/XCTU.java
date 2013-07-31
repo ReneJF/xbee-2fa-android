@@ -1,15 +1,18 @@
 
-package com.example.testxbeeproject.activities;
+package com.example.SDXbeta.activities;
 
 import java.util.HashMap;
 
 import org.json.JSONException;
 import org.json.JSONObject;
-import com.example.xbee_i2r.R;
+
 import com.example.JSON_format.XCTUValues;
+import com.example.xbee_i2r.InitializeDevice;
+import com.example.xbee_i2r.R;
+import com.example.xbee_i2r.ReadService;
+import com.example.xbee_i2r.SendCommands;
 import com.ftdi.j2xx.FT_Device;
 import com.google.gson.Gson;
-import com.example.xbee_i2r.*;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -32,7 +35,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
-/** Test Activity class that can read from the XBEE's registers and write permanently to the XBEE's registers.  
+/** UI class that displays the XBEE registers.   
  * 
  * @author Nirav Gandhi A0088471@nus.edu.sg
  *
@@ -43,8 +46,8 @@ public class XCTU extends Activity {
 	private BroadcastReceiver receiver;
 	private Gson gson;
 	private EditText etMY,etDL,etDH,etID,etNT; // Text where the values are displayed. 
-	private Spinner spinnerCH,spinnerBD,spinnerAP; // Spinner from where the values can be selected. 
-	private ArrayAdapter<CharSequence> adapterCH,adapterBD,adapterAP; // Adapters for the spinners
+	private Spinner spinnerCH,spinnerBD; // Spinner from where the values can be selected. 
+	private ArrayAdapter<CharSequence> adapterCH,adapterBD; // Adapters for the spinners
 	private Context context;
 	private Button readButton,applyChangesButton;
 	private HashMap<Integer,Integer> baudMap; // A hashMap that keys the baud numbers with the corresponding baudRates.  
@@ -57,13 +60,15 @@ public class XCTU extends Activity {
 	private Editor editor;
 	private String[] fileArray;
 	private int itemClicked = -1;
+	private String fileNamelabel = "FileName";
+	private String JSONstringLabel = "JSON string:";
 
-	@SuppressLint("NewApi")
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.xctu_layout);
 		context = this;
+		this.setTitle("Mini - XCTU");
 		readButton = (Button) findViewById(R.id.readButton);
 		applyChangesButton = (Button) findViewById(R.id.applyButton);
 		etMY = (EditText) findViewById(R.id.etMY);
@@ -81,34 +86,39 @@ public class XCTU extends Activity {
 		spinnerCH.setEnabled(false);
 		spinnerBD = (Spinner) findViewById(R.id.spinner3);
 		spinnerBD.setEnabled(false);
-		spinnerAP = (Spinner) findViewById(R.id.spinner2);
-		spinnerAP.setEnabled(false);
 		applyChangesButton.setEnabled(false);
 		gson = new Gson();
+		// BaudMap is a hashMap that maps baudNumbers to baudRates
 		baudMap = new HashMap<Integer,Integer>();
 		int[] baudNumbers = new int[]{0,1,2,3,4,5,6,7};
 		int[] baudRates = new int[]{1200,2400,4800,9600,19200,38400,57600,115200};
 		for(int j=0;j<baudNumbers.length;j++){
 			baudMap.put(baudNumbers[j], baudRates[j]);
 		}
+		// BaudMap2 is a hashMap that maps baudRates to baudNumbers
 		baudMap2 = new HashMap<Integer,Integer>();
 		for(int j=0;j<baudNumbers.length;j++){
 			baudMap2.put(baudRates[j], baudNumbers[j]);
 		}
+		// Since XCTU is the launcher activity, the ftDevice is initialized by the 'InitializeDevice' class. 
 		if(ftDev == null){
 			InitializeDevice init = new InitializeDevice(context);
 			ftDev = init.initialize();
+			// As soon as the device is connected, the readService is started. 
 			Intent intent = new Intent(context,ReadService.class);
 			startService(intent);
 		}
+		
 		send = new SendCommands();
 		applyChangesButton.setEnabled(true);
+		
 		readButton.setOnClickListener(new View.OnClickListener() {
+		
 		// Will provide the JSONData in onReceive().
 		@Override
 		public void onClick(View v) {
 			if(ftDev != null)
-				send.readXCTUValues();
+				send.readXCTUValues(); // sends the command to the library to receive the XCTU values
 		}
 		});
 		
@@ -122,8 +132,7 @@ public class XCTU extends Activity {
 					JSONObject object;
 					if(isValuesCorrect()){
 						object = collectValues();
-						Log.d(TAG,"JSON String of XCTU Values:" + object.toString());
-						send.writeXCTUValues(gson.fromJson(object.toString(), XCTUValues.class));
+						send.writeXCTUValues(gson.fromJson(object.toString(), XCTUValues.class)); //sends the new validated XCTU values to be written permanently onto the XBEE
 					}
 				}
 			}
@@ -157,6 +166,16 @@ public class XCTU extends Activity {
 			startActivity(intent);
 			break;
 		case R.id.saveValues:
+			
+			/** This helps create a dialog box for the user to enter the name of the file to be saved. 
+			 *  The files are saved as a shared preference. 
+			 *  There are 3 values to be editted to save a file on the ROM :-
+			 *  1. NumFiles - specifies the number of total files saved.
+			 *  2. File-name - the file name is stored on the ROM with the file-number as the key
+			 *  3. JSON - string - the JSON string is stored on the ROM with the file-name as the key 
+			 * 
+			 */
+			
 			pref = getApplicationContext().getSharedPreferences("savedFiles", MODE_PRIVATE);
 			editor = pref.edit();
 			if(pref.getInt("numFiles", -1) == -1){
@@ -167,6 +186,7 @@ public class XCTU extends Activity {
 			else{
 				numFiles = pref.getInt("numFiles",-1);
 			}
+			
 			AlertDialog.Builder builder = new AlertDialog.Builder(context);
 			LayoutInflater inflater = this.getLayoutInflater();
 			builder.setView(inflater.inflate(R.layout.save_layout, null))
@@ -179,7 +199,7 @@ public class XCTU extends Activity {
 					final String fileName = etFile.getText().toString();
 					boolean fileExists = false;
 					for(int i=1;i<=numFiles;i++){
-						if(fileName.equals(pref.getString(Integer.valueOf(i).toString(), null))){
+						if(fileName.equals(pref.getString(fileNamelabel + Integer.valueOf(i).toString(), null))){
 							fileExists = true;
 							AlertDialog.Builder builder3 = new AlertDialog.Builder(context);
 							builder3.setTitle("Overwrite File");
@@ -196,7 +216,7 @@ public class XCTU extends Activity {
 								@Override
 								public void onClick(DialogInterface dialog, int which) {
 									if(isValuesCorrect()){
-										editor.putString(fileName, collectValues().toString());
+										editor.putString(JSONstringLabel + fileName, collectValues().toString());
 										editor.commit();
 									}
 								}
@@ -208,9 +228,9 @@ public class XCTU extends Activity {
 					if(!fileExists){
 						numFiles++;
 						editor.putInt("numFiles", numFiles);
-						editor.putString(Integer.valueOf(numFiles).toString(), fileName);
+						editor.putString(fileNamelabel + Integer.valueOf(numFiles).toString(), fileName);
 						if(isValuesCorrect()){
-							editor.putString(fileName, collectValues().toString());
+							editor.putString(JSONstringLabel + fileName, collectValues().toString());
 							editor.commit();
 						}
 					}
@@ -226,6 +246,9 @@ public class XCTU extends Activity {
 			dialog.show();
 			break;
 		case R.id.loadValues:
+			/** Displays all the saved files and loads the selected file.
+			 * 
+			 */
 			pref = getApplicationContext().getSharedPreferences("savedFiles", MODE_PRIVATE);
 			editor = pref.edit();
 			int loadFiles;
@@ -237,7 +260,7 @@ public class XCTU extends Activity {
 			}
 			fileArray = new String[loadFiles];
 			for(int i=1;i<=loadFiles;i++){
-				fileArray[i-1] = pref.getString(Integer.valueOf(i).toString(), null);
+				fileArray[i-1] = pref.getString(fileNamelabel + Integer.valueOf(i).toString(), null);
 			}
 			AlertDialog.Builder builder2 = new AlertDialog.Builder(context);
 			builder2.setTitle("Load Values");
@@ -254,7 +277,7 @@ public class XCTU extends Activity {
 				@Override
 				public void onClick(DialogInterface dialog, int which) {
 					String jsonString;
-					if((jsonString = pref.getString(fileArray[itemClicked], null)) != null){
+					if((jsonString = pref.getString(JSONstringLabel + fileArray[itemClicked], null)) != null){
 						Gson gson = new Gson();
 						Log.d(TAG,"jsonString is" + jsonString);
 						fillUI(gson.fromJson(jsonString, XCTUValues.class));
@@ -281,6 +304,9 @@ public class XCTU extends Activity {
 	protected void onStart() {
 		super.onStart();
 		IntentFilter filter = new IntentFilter(ReadService.AT_RESPONSE_ACTION);
+		/** A receiver that receives the XCTUValues from the ReadService. 
+		 * 
+		 */
 		receiver = new BroadcastReceiver(){
 			@Override
 			public void onReceive(Context arg1, Intent intent) {
@@ -301,16 +327,15 @@ public class XCTU extends Activity {
 		super.onStop();
 		unregisterReceiver(receiver);
 	}
-	
+	/** Fills each of the UI's text-boxes with the values specified. 
+	 * 
+	 * @param values 
+	 */
 	private void fillUI(XCTUValues values){
 		adapterBD = ArrayAdapter.createFromResource(context,R.array.baud_rates,android.R.layout.simple_spinner_item);
 		adapterBD.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 		spinnerBD.setAdapter(adapterBD);
 		spinnerBD.setEnabled(true);
-		adapterAP = ArrayAdapter.createFromResource(context,R.array.APmodes,android.R.layout.simple_spinner_item);
-		adapterAP.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-		spinnerAP.setAdapter(adapterAP);
-		spinnerAP.setEnabled(true);
 		etMY.setText("" + values.getMyAddr());
 		etMY.setEnabled(true);
 		etDL.setText("" + values.getDlAddr());
@@ -322,7 +347,6 @@ public class XCTU extends Activity {
 		etNT.setText("" + values.getNd_time());
 		etNT.setEnabled(true);
 		spinnerBD.setSelection(adapterBD.getPosition("" + baudMap.get(values.getBaudNumber())));
-		spinnerAP.setSelection(adapterAP.getPosition("" + values.getAPmode()));
 		if(values.getHardwareVersion() == 0x17){
 			adapterCH = ArrayAdapter.createFromResource(context,R.array.s1_channels,android.R.layout.simple_spinner_item);
 		}
@@ -335,6 +359,11 @@ public class XCTU extends Activity {
 		spinnerCH.setSelection(adapterCH.getPosition("" + values.getChannel()));
 	}
 	
+	/** Validates the values currently on screen 
+	 * 
+	 * @author Zarni
+	 * @return true if all the values are correct, else false
+	 */
 	private boolean isValuesCorrect(){
 		
 		boolean isCorrect = true;
@@ -369,6 +398,12 @@ public class XCTU extends Activity {
 			return isCorrect;
 	}
 	
+	/** Displays a dialog box
+	 * 
+	 * @param title - title of the displayed dialog box 
+	 * @param message - message of the displayed dialog box 
+	 */
+	
 	private void showDialog(String title, String message)
     {
       AlertDialog.Builder localBuilder = new AlertDialog.Builder(this);
@@ -377,6 +412,11 @@ public class XCTU extends Activity {
       localBuilder.setPositiveButton("OK", null);
       localBuilder.show();
     }
+	
+	/**  function to collect all the values currently in each of the edit-textboxes
+	 * 
+	 * @return a JSON representation of the displayed values in their corr. textboxes. 
+	 */
 	
 	private JSONObject collectValues(){
 		JSONObject object = new JSONObject();
@@ -389,7 +429,6 @@ public class XCTU extends Activity {
 			object.put("dhAddr", etDH.getText());
 			object.put("nd_time", etNT.getText());
 			object.put("baudNumber", baudMap2.get(Integer.parseInt(adapterBD.getItem(spinnerBD.getSelectedItemPosition()).toString())));
-			object.put("APmode", adapterAP.getItem(spinnerAP.getSelectedItemPosition()));
 			if(adapterCH.getCount() == 12){
 				object.put("hardware_version", 24);
 			}

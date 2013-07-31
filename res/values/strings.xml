@@ -1,7 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <string name="app_name">testXBEEProject</string>
-    <string name="hello_world">Hello world!</string>
-
+    <string name="app_name">SDXbeta</string>
+	<string name="sniffer_name">Packet Sniffer</string>
+	<string name="xctu_name">Mini - XCTU</string>
+	<string name="discovery_name">Node Discovery</string>
+	<string name="remote_xbee_info_name">Remote XBee Info</string>
+	<string name="settings_name">Settings</string>
 </resources>
+

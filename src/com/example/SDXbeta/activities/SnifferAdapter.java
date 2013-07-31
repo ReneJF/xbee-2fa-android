@@ -1,4 +1,4 @@
-package com.example.testxbeeproject.activities;
+package com.example.SDXbeta.activities;
 
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;

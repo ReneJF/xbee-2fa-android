@@ -1,4 +1,4 @@
-package com.example.testxbeeproject.activities;
+package com.example.SDXbeta.activities;
 
 import com.example.JSON_format.RemoteXBEEValues;
 import com.example.xbee_i2r.InitializeDevice;
@@ -12,11 +12,15 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 /** Test Activity class that displays the remote XBEE's info such as battery percentage, serial Number etc. 
  * 
  * @author Nirav Gandhi A0088471@nus.edu.sg
@@ -26,6 +30,7 @@ public class RemoteXBeeInfo extends Activity{
 
 	private BroadcastReceiver remoteInfoReceiver;
 	private BroadcastReceiver batteryInfoReceiver;
+	private BroadcastReceiver positiveResponseReceiver;
 	private Gson gson;
 	private TextView serialHigherText;
 	private TextView serialLowerText;
@@ -36,7 +41,7 @@ public class RemoteXBeeInfo extends Activity{
 	private TextView niText;
 	private EditText panIdText;
 	private Spinner spinnerCH;
-	private EditText channelText;
+	private Button applyChangesButton;
 	private SendCommands send;
 	private Context context;
 	private FT_Device ftDev= null;
@@ -64,7 +69,39 @@ public class RemoteXBeeInfo extends Activity{
 		niText = (TextView) findViewById(R.id.AnswerNI);
 		spinnerCH = (Spinner) findViewById(R.id.SpinnerCH);
 		panIdText = (EditText) findViewById(R.id.AnswerID);
+		applyChangesButton = (Button) findViewById(R.id.applyChangesButton);
 		
+		applyChangesButton.setOnClickListener(new View.OnClickListener() {
+			
+			@Override
+			public void onClick(View v) {
+				RemoteXBEEValues values= collectValues();
+				send.sendRemoteWriteQueries(values,destAddr);
+			}
+		});
+		// Receiver that receives the RemoteAtResponses of the values that were changed and written on the remote XBee. 
+		positiveResponseReceiver = new BroadcastReceiver(){
+
+			@Override
+			public void onReceive(Context context, Intent intent) {
+				String command = intent.getStringExtra("command");
+				switch(command.charAt(0)){
+					case 'C':
+						spinnerCH.setBackgroundColor(Color.GREEN);
+						break;
+					case 'I':
+						panIdText.setBackgroundColor(Color.GREEN);
+						break;
+					case 'M':
+						myText.setBackgroundColor(Color.GREEN);
+						break;
+					case 'W':
+						Toast.makeText(context, "Selected values written permanently", Toast.LENGTH_SHORT).show();
+						break;				
+				}	
+			}
+		};
+		// Receiver that receives remoteAtResponse containing values of registers : HV,CH,SL,SH,ID,NI	
 		remoteInfoReceiver = new BroadcastReceiver(){
 			@Override
 			public void onReceive(Context context, Intent intent) {
@@ -72,7 +109,7 @@ public class RemoteXBeeInfo extends Activity{
 				if(values.getNode_identifier() !=null){
 					niText.setText("" + values.getNode_identifier());
 				}
-				if(values.getHardware_version() != 0){
+				if(values.getHardware_version() != -1){
 					if(values.getHardware_version() == 0x17){
 						modelText.setText("Series 1");
 						adapterCH = ArrayAdapter.createFromResource(context,R.array.s1_channels,android.R.layout.simple_spinner_item);
@@ -88,15 +125,16 @@ public class RemoteXBeeInfo extends Activity{
 				if(values.getSerial_lower() != null){
 					serialLowerText.setText(values.getSerial_lower());
 				}
-				if(values.getChannel() != 0){
+				if(values.getChannel() != -1){
 					if(adapterCH != null){
 						spinnerCH.setAdapter(adapterCH);
 						spinnerCH.setSelection(adapterCH.getPosition("" + values.getChannel()));
 					}
 				}
-				if(values.getPan_id() != 0){
+				if(values.getPan_id() != -1){
 					panIdText.setText("" + values.getPan_id());
 				}
+				
 				// Code snippet to get Battery Information. The results are broadcasted and received by a receiver registered to
 				// BATTERY_INFO_ACTION.
 				
@@ -107,14 +145,15 @@ public class RemoteXBeeInfo extends Activity{
 				startService(i);
 			}
 		};
+		
+		// A receiver that receives the battery voltage and battery percentage. Command is sent through the Battery service.
+		// This service is started when the time for remoteAtResponse is up.
 		batteryInfoReceiver = new BroadcastReceiver(){
-
 			@Override
 			public void onReceive(Context context, Intent intent) {
-				batteryText.setText("" + intent.getIntExtra("battery", -1));
+				batteryText.setText("" + intent.getIntExtra("battery", -1) + "%");
 				voltageText.setText("" + intent.getIntExtra("voltage", -1));
-			}
-			
+			}	
 		};
 	}
 
@@ -123,6 +162,7 @@ public class RemoteXBeeInfo extends Activity{
 		super.onStart();
 		IntentFilter filter = new IntentFilter(ReadService.REMOTE_AT_RESPONSE_ACTION);
 		registerReceiver(remoteInfoReceiver,filter);
+		registerReceiver(positiveResponseReceiver,new IntentFilter(ReadService.POSITIVE_REPONSE_ACTION));
 		destAddr = new XBeeAddress16(getIntent().getIntArrayExtra("MYAddress"));
 		operatingChannel = getIntent().getIntExtra("channel",-1);
 		if(operatingChannel != -1){
@@ -135,7 +175,20 @@ public class RemoteXBeeInfo extends Activity{
 	@Override
 	protected void onStop() {
 		super.onStop();
-		unregisterReceiver(remoteInfoReceiver);
-		unregisterReceiver(batteryInfoReceiver);
+		try{
+			unregisterReceiver(remoteInfoReceiver);
+			unregisterReceiver(batteryInfoReceiver);
+			unregisterReceiver(positiveResponseReceiver);
+		}catch(IllegalArgumentException e){
+			e.printStackTrace();
+		}
+	}
+	
+	private RemoteXBEEValues collectValues(){
+		RemoteXBEEValues values = new RemoteXBEEValues();
+		values.setMy_addr(Integer.parseInt(myText.getText().toString()));
+		values.setPan_id(Integer.parseInt(panIdText.getText().toString()));
+		values.setChannel(Integer.parseInt(adapterCH.getItem(spinnerCH.getSelectedItemPosition()).toString()));
+		return values;
 	}
 }
