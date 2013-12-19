@@ -152,153 +152,147 @@ public class XCTU extends Activity {
 	@Override
 	public boolean onMenuItemSelected(int featureId, MenuItem item) {
 		Intent intent;
-		switch(item.getItemId()){
-		case R.id.tabSniffer:
-			intent = new Intent(context,Sniffer.class);
-			startActivity(intent);
-			break;
-		case R.id.tabXCTU:
-			break;
-		case R.id.tabND:
-			intent = new Intent(context,NodeDiscovery.class);
-			startActivity(intent);
-			break;
-		case R.id.settings:
-			intent = new Intent(context,Settings.class);
-			startActivity(intent);
-			break;
-		case R.id.saveValues:
-			
-			/** This helps create a dialog box for the user to enter the name of the file to be saved. 
-			 *  The files are saved as a shared preference. 
-			 *  There are 3 values to be editted to save a file on the ROM :-
-			 *  1. NumFiles - specifies the number of total files saved.
-			 *  2. File-name - the file name is stored on the ROM with the file-number as the key
-			 *  3. JSON - string - the JSON string is stored on the ROM with the file-name as the key 
-			 * 
-			 */
-			
-			pref = getApplicationContext().getSharedPreferences("savedFiles", MODE_PRIVATE);
-			editor = pref.edit();
-			if(pref.getInt("numFiles", -1) == -1){
-				editor.putInt("numFiles",0);
-				editor.commit();
-				numFiles = 0;
-			}
-			else{
-				numFiles = pref.getInt("numFiles",-1);
-			}
-			
-			AlertDialog.Builder builder = new AlertDialog.Builder(context);
-			LayoutInflater inflater = this.getLayoutInflater();
-			builder.setView(inflater.inflate(R.layout.save_layout, null))
-					.setTitle("Save Values")
-					.setPositiveButton(R.string.saveValues, new DialogInterface.OnClickListener() {
-				
-				@Override
-				public void onClick(DialogInterface dialogInterface, int which) {
-					EditText etFile = (EditText) dialog.findViewById(R.id.fileName);
-					final String fileName = etFile.getText().toString();
-					boolean fileExists = false;
-					for(int i=1;i<=numFiles;i++){
-						if(fileName.equals(pref.getString(fileNamelabel + Integer.valueOf(i).toString(), null))){
-							fileExists = true;
-							AlertDialog.Builder builder3 = new AlertDialog.Builder(context);
-							builder3.setTitle("Overwrite File");
-							builder3.setMessage("Overwrite this file");
-							builder3.setNegativeButton("NO", new DialogInterface.OnClickListener() {
-								
-								@Override
-								public void onClick(DialogInterface dialog, int which) {
-									
-								}
-							});
-							builder3.setPositiveButton("YES", new DialogInterface.OnClickListener() {
-								
-								@Override
-								public void onClick(DialogInterface dialog, int which) {
-									if(isValuesCorrect()){
-										editor.putString(JSONstringLabel + fileName, collectValues().toString());
-										editor.commit();
-									}
-								}
-							});
-							AlertDialog dialog = builder3.create();
-							dialog.show();
-						}
-					}
-					if(!fileExists){
-						numFiles++;
-						editor.putInt("numFiles", numFiles);
-						editor.putString(fileNamelabel + Integer.valueOf(numFiles).toString(), fileName);
-						if(isValuesCorrect()){
-							editor.putString(JSONstringLabel + fileName, collectValues().toString());
-							editor.commit();
-						}
-					}
-				}
-			})
-					.setNegativeButton(R.string.cancelAlert, new DialogInterface.OnClickListener() {
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-					
-				}
-			});
-			dialog = builder.create();
-			dialog.show();
-			break;
-		case R.id.loadValues:
-			/** Displays all the saved files and loads the selected file.
-			 * 
-			 */
-			pref = getApplicationContext().getSharedPreferences("savedFiles", MODE_PRIVATE);
-			editor = pref.edit();
-			int loadFiles;
-			if(pref.getInt("numFiles", -1) == -1){
-				loadFiles = 0;
-			}
-			else{
-				loadFiles = pref.getInt("numFiles",-1);
-			}
-			fileArray = new String[loadFiles];
-			for(int i=1;i<=loadFiles;i++){
-				fileArray[i-1] = pref.getString(fileNamelabel + Integer.valueOf(i).toString(), null);
-			}
-			AlertDialog.Builder builder2 = new AlertDialog.Builder(context);
-			builder2.setTitle("Load Values");
-			
-			builder2.setSingleChoiceItems(fileArray, -1, new DialogInterface.OnClickListener() {
-				
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-					itemClicked = which;
-				}
-			});
-			builder2.setPositiveButton(R.string.loadValues, new DialogInterface.OnClickListener() {
-				
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-					String jsonString;
-					if((jsonString = pref.getString(JSONstringLabel + fileArray[itemClicked], null)) != null){
-						Gson gson = new Gson();
-						Log.d(TAG,"jsonString is" + jsonString);
-						fillUI(gson.fromJson(jsonString, XCTUValues.class));
-					}else{
-						
-					}
-				}
-			} );
-			builder2.setNegativeButton(R.string.cancelAlert, new DialogInterface.OnClickListener() {
-				
-				@Override
-				public void onClick(DialogInterface dialog, int which) {
-					
-				}
-			});
-			AlertDialog dialog2 = builder2.create();
-			dialog2.show();
-			break;
-		}
+        int itemId = item.getItemId();
+        if (itemId == R.id.tabSniffer) {
+            intent = new Intent(context, Sniffer.class);
+            startActivity(intent);
+
+        } else if (itemId == R.id.tabXCTU) {
+        } else if (itemId == R.id.tabND) {
+            intent = new Intent(context, NodeDiscovery.class);
+            startActivity(intent);
+
+        } else if (itemId == R.id.settings) {
+            intent = new Intent(context, Settings.class);
+            startActivity(intent);
+
+        } else if (itemId == R.id.saveValues) {/** This helps create a dialog box for the user to enter the name of the file to be saved.
+         *  The files are saved as a shared preference.
+         *  There are 3 values to be editted to save a file on the ROM :-
+         *  1. NumFiles - specifies the number of total files saved.
+         *  2. File-name - the file name is stored on the ROM with the file-number as the key
+         *  3. JSON - string - the JSON string is stored on the ROM with the file-name as the key
+         *
+         */
+
+            pref = getApplicationContext().getSharedPreferences("savedFiles", MODE_PRIVATE);
+            editor = pref.edit();
+            if (pref.getInt("numFiles", -1) == -1) {
+                editor.putInt("numFiles", 0);
+                editor.commit();
+                numFiles = 0;
+            } else {
+                numFiles = pref.getInt("numFiles", -1);
+            }
+
+            AlertDialog.Builder builder = new AlertDialog.Builder(context);
+            LayoutInflater inflater = this.getLayoutInflater();
+            builder.setView(inflater.inflate(R.layout.save_layout, null))
+                    .setTitle("Save Values")
+                    .setPositiveButton(R.string.saveValues, new DialogInterface.OnClickListener() {
+
+                        @Override
+                        public void onClick(DialogInterface dialogInterface, int which) {
+                            EditText etFile = (EditText) dialog.findViewById(R.id.fileName);
+                            final String fileName = etFile.getText().toString();
+                            boolean fileExists = false;
+                            for (int i = 1; i <= numFiles; i++) {
+                                if (fileName.equals(pref.getString(fileNamelabel + Integer.valueOf(i).toString(), null))) {
+                                    fileExists = true;
+                                    AlertDialog.Builder builder3 = new AlertDialog.Builder(context);
+                                    builder3.setTitle("Overwrite File");
+                                    builder3.setMessage("Overwrite this file");
+                                    builder3.setNegativeButton("NO", new DialogInterface.OnClickListener() {
+
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+
+                                        }
+                                    });
+                                    builder3.setPositiveButton("YES", new DialogInterface.OnClickListener() {
+
+                                        @Override
+                                        public void onClick(DialogInterface dialog, int which) {
+                                            if (isValuesCorrect()) {
+                                                editor.putString(JSONstringLabel + fileName, collectValues().toString());
+                                                editor.commit();
+                                            }
+                                        }
+                                    });
+                                    AlertDialog dialog = builder3.create();
+                                    dialog.show();
+                                }
+                            }
+                            if (!fileExists) {
+                                numFiles++;
+                                editor.putInt("numFiles", numFiles);
+                                editor.putString(fileNamelabel + Integer.valueOf(numFiles).toString(), fileName);
+                                if (isValuesCorrect()) {
+                                    editor.putString(JSONstringLabel + fileName, collectValues().toString());
+                                    editor.commit();
+                                }
+                            }
+                        }
+                    })
+                    .setNegativeButton(R.string.cancelAlert, new DialogInterface.OnClickListener() {
+                        @Override
+                        public void onClick(DialogInterface dialog, int which) {
+
+                        }
+                    });
+            dialog = builder.create();
+            dialog.show();
+
+        } else if (itemId == R.id.loadValues) {/** Displays all the saved files and loads the selected file.
+         *
+         */
+            pref = getApplicationContext().getSharedPreferences("savedFiles", MODE_PRIVATE);
+            editor = pref.edit();
+            int loadFiles;
+            if (pref.getInt("numFiles", -1) == -1) {
+                loadFiles = 0;
+            } else {
+                loadFiles = pref.getInt("numFiles", -1);
+            }
+            fileArray = new String[loadFiles];
+            for (int i = 1; i <= loadFiles; i++) {
+                fileArray[i - 1] = pref.getString(fileNamelabel + Integer.valueOf(i).toString(), null);
+            }
+            AlertDialog.Builder builder2 = new AlertDialog.Builder(context);
+            builder2.setTitle("Load Values");
+
+            builder2.setSingleChoiceItems(fileArray, -1, new DialogInterface.OnClickListener() {
+
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    itemClicked = which;
+                }
+            });
+            builder2.setPositiveButton(R.string.loadValues, new DialogInterface.OnClickListener() {
+
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+                    String jsonString;
+                    if ((jsonString = pref.getString(JSONstringLabel + fileArray[itemClicked], null)) != null) {
+                        Gson gson = new Gson();
+                        Log.d(TAG, "jsonString is" + jsonString);
+                        fillUI(gson.fromJson(jsonString, XCTUValues.class));
+                    } else {
+
+                    }
+                }
+            });
+            builder2.setNegativeButton(R.string.cancelAlert, new DialogInterface.OnClickListener() {
+
+                @Override
+                public void onClick(DialogInterface dialog, int which) {
+
+                }
+            });
+            AlertDialog dialog2 = builder2.create();
+            dialog2.show();
+
+        }
 		return true;
 	}
 	

@@ -287,22 +287,21 @@ public class NodeDiscovery extends Activity{
 	@Override
 	public boolean onMenuItemSelected(int featureId, MenuItem item) {
 		Intent intent;
-		switch(item.getItemId()){
-		case R.id.tabSniffer:
-			intent = new Intent(context,Sniffer.class);
-			startActivity(intent);
-			break;
-		case R.id.tabXCTU:
-			intent = new Intent(context,XCTU.class);
-			startActivity(intent);
-			break;
-		case R.id.tabND:
-			break;
-		case R.id.settings:
-			intent = new Intent(context,Settings.class);
-			startActivity(intent);
-			break;
-		}
+        int itemId = item.getItemId();
+        if (itemId == R.id.tabSniffer) {
+            intent = new Intent(context, Sniffer.class);
+            startActivity(intent);
+
+        } else if (itemId == R.id.tabXCTU) {
+            intent = new Intent(context, XCTU.class);
+            startActivity(intent);
+
+        } else if (itemId == R.id.tabND) {
+        } else if (itemId == R.id.settings) {
+            intent = new Intent(context, Settings.class);
+            startActivity(intent);
+
+        }
 		return super.onMenuItemSelected(featureId, item);
 	}
 	

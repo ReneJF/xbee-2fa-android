@@ -70,22 +70,21 @@ public class Sniffer extends Activity{
 	@Override
 	public boolean onMenuItemSelected(int featureId, MenuItem item) {
 		Intent intent;
-		switch(item.getItemId()){
-		case R.id.tabSniffer:
-			break;
-		case R.id.tabXCTU:
-			intent = new Intent(context,XCTU.class);
-			startActivity(intent);
-			break;
-		case R.id.tabND:
-			intent = new Intent(context,NodeDiscovery.class);
-			startActivity(intent);
-			break;
-		case R.id.settings:
-			intent = new Intent(context,Settings.class);
-			startActivity(intent);
-			break;
-		}
+        int itemId = item.getItemId();
+        if (itemId == R.id.tabSniffer) {
+        } else if (itemId == R.id.tabXCTU) {
+            intent = new Intent(context, XCTU.class);
+            startActivity(intent);
+
+        } else if (itemId == R.id.tabND) {
+            intent = new Intent(context, NodeDiscovery.class);
+            startActivity(intent);
+
+        } else if (itemId == R.id.settings) {
+            intent = new Intent(context, Settings.class);
+            startActivity(intent);
+
+        }
 		return true;
 	}
 
