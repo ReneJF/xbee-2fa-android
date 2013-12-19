@@ -15,6 +15,9 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Typeface;
+import android.os.Message;
+import android.os.Messenger;
+import android.os.RemoteException;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -29,11 +32,13 @@ public class LazyAdapter extends BaseAdapter{
 	private Activity activity;
 	private ArrayList<Node> nodeList;
 	private static LayoutInflater inflater = null;
+	private Messenger messenger;
 	
-	public LazyAdapter(Activity a,ArrayList<Node> d){
+	public LazyAdapter(Activity a,ArrayList<Node> d, Messenger messenger){
 		activity = a;
 		nodeList = d;
 		inflater = (LayoutInflater) activity.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+		this.messenger = messenger;
 	}
 	@Override
 	public int getCount() {
@@ -78,21 +83,12 @@ public class LazyAdapter extends BaseAdapter{
 				}catch(InterruptedException e){} // Buffer time given to the XBee to change the channel to the node's channel
 				Intent intent = new Intent(activity,BatteryService.class);
 				intent.putExtra("destAddr", node.getAddr16());
-				final Object object = new Object();
-				NodeDiscovery.showProgressDialog(object);
-				Thread dismissDialog = new Thread(){
-					public void run(){
-						try {
-							synchronized(object){
-								object.wait(10000);
-							}
-						} catch (InterruptedException e1) {
-							e1.printStackTrace();
-						}
-						NodeDiscovery.dismissProgressDialog();
-					}
-				};
-				dismissDialog.start();
+				Message msg = Message.obtain();
+				try {
+					messenger.send(msg);
+				} catch (RemoteException e) {
+					e.printStackTrace();
+				}
 				activity.startService(intent); // Battery service called. The battery percentage is updated in the receiver of NodeDiscovery activity. 
 			}
 		});

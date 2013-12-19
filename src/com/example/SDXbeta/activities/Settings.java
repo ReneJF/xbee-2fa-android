@@ -36,8 +36,6 @@ public class Settings extends Activity{
 	private CheckBox changeAPCheckBox;
 	private XCTUValues values;
 	private SendCommands send;
-	private BroadcastReceiver OK_receiver;
-	private int command;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -64,14 +62,6 @@ public class Settings extends Activity{
 				baudNumber = values.getBaudNumber();
 				spinner.setSelection(adapterBD.getPosition("" + baudMap.get(baudNumber)));
 			}
-		};
-		OK_receiver = new BroadcastReceiver(){
-
-			@Override
-			public void onReceive(Context arg0, Intent arg1) {
-				
-			}
-			
 		};
 		applySettingsButton.setOnClickListener(new View.OnClickListener() {
 			

@@ -35,11 +35,13 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
+
 /** UI class that displays the XBEE registers.   
  * 
  * @author Nirav Gandhi A0088471@nus.edu.sg
  *
  */
+
 public class XCTU extends Activity {
 
 	protected static final String TAG = "com.example.xbee_i2r_XCTUTest";

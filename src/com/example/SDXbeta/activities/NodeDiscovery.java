@@ -7,6 +7,7 @@ import com.example.xbee_i2r.*;
 import com.google.gson.Gson;
 import com.example.JSON_format.XCTUValues;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.BroadcastReceiver;
 import android.content.Context;
@@ -47,17 +48,19 @@ public class NodeDiscovery extends Activity{
 	private SharedPreferences pref;
 	private Editor editor; // editor used to edit the shared preferences
 	private int counter; 
-	private static Context context; // Activity's context
+	private Context context; // Activity's context
 	private CheckBox checkAllChannels; // Checkbox for user to select whether all channels need to be checked.
 	private XCTUValues currentValues; // to store the XBEE register values when the activity was created. 
 	private ArrayList<Node> nodeList; // An ArrayList that stores all the nodes discovered. These nodes are stored as 'Node'.
 	private ListView nodeListView; 
 	private LazyAdapter adapter;
 	private TextView lastRefreshed;
-	private static ProgressDialog progressDialog;
-	private static Object object;
-	private Handler handler;
-	private boolean txReceived;
+	private ProgressDialog progressDialog;
+	private Object object;
+	private Handler progressHandler,progressHandler2;
+	private Handler alertDialogHandler;
+	private static boolean txReceived;
+	private Messenger batteryMessenger;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -69,8 +72,15 @@ public class NodeDiscovery extends Activity{
 		lastRefreshed = (TextView) findViewById(R.id.refresh_tv);
 		gson = new Gson();
 		nodeList = new ArrayList<Node>();
-		adapter = new LazyAdapter(this,nodeList);
+		progressHandler2 = new Handler(){
+			public void handleMessage(Message msg){
+				showProgressDialog();
+			}
+		};
+		batteryMessenger = new Messenger(progressHandler2);
+		adapter = new LazyAdapter(this,nodeList,batteryMessenger);
 		nodeListView.setAdapter(adapter);
+		object = new Object();
 		pref = getApplicationContext().getSharedPreferences("list_preference",MODE_PRIVATE);
 		editor = pref.edit();
 		counter = 0;
@@ -96,11 +106,22 @@ public class NodeDiscovery extends Activity{
 			adapter.notifyDataSetChanged();
 		}
 		//Handler that dismisses the progress Dialog box on receiving a message. 
-		handler = new Handler(){
+		progressHandler = new Handler(){
 			public void handleMessage(Message msg){
 				progressDialog.dismiss();
 			}
 		};
+		alertDialogHandler = new Handler(){
+			public void handleMessage(Message msg){
+				if(msg.arg1 == 0){
+					showAlertDialog("Error!", "Node out-of-range");
+				}
+				else{
+					showAlertDialog("Error!","Battery packet lost");
+				}
+			}
+		};
+		
 	}
 	
 	@Override
@@ -141,8 +162,8 @@ public class NodeDiscovery extends Activity{
 
 			@Override
 			public void onReceive(Context arg0, Intent intent) {
-				Toast.makeText(context, "TX Request received", Toast.LENGTH_SHORT).show();
 				txReceived = true;
+				Toast.makeText(context, "Tx Response received", Toast.LENGTH_SHORT).show();
 			}
 			
 		};
@@ -181,6 +202,11 @@ public class NodeDiscovery extends Activity{
 							TextView batteryText = (TextView) view.findViewById(R.id.etBattery);
 							batteryText.setText("" + intent.getIntExtra("battery", -1) + "%");
 							node.setBatteryPerc(intent.getIntExtra("battery", -1));
+							progressDialog.dismiss();
+							txReceived = false;
+							synchronized(object){
+								object.notify();
+							}
 							break;
 						}
 					}
@@ -215,7 +241,7 @@ public class NodeDiscovery extends Activity{
 						adapter.notifyDataSetChanged();
 					}
 					
-					Messenger messenger = new Messenger(handler); // Used for communication between the service and the NodeDiscovery activity. 
+					Messenger messenger = new Messenger(progressHandler); // Used for communication between the service and the NodeDiscovery activity. 
 					// Progress dialog is dismissed when a message is sent through the messenger
 					Intent intent = new Intent(context,NDService.class);
 					intent.putExtra("checkboxChecked", checkAllChannels.isChecked());// To inform the service whether all the channels need to be checked. 
@@ -227,10 +253,12 @@ public class NodeDiscovery extends Activity{
 					startService(intent);
 				}
 			}
-		});	
+		});
+		
 		/**
 		 * Opens up the remoteXBeeInfo activity on itemClick
 		 */
+		
 		nodeListView.setOnItemClickListener(new OnItemClickListener() {
 
 			@Override
@@ -283,9 +311,22 @@ public class NodeDiscovery extends Activity{
 	 * @param o to notify the waiting thread that battery data has been received.  
 	 */
 
-	public static void showProgressDialog(Object o){
-		progressDialog = ProgressDialog.show(context, "In progress", "Retrieving", true);
-		object = o;
+	public void showProgressDialog(){
+		progressDialog = ProgressDialog.show(context, "In progress", "Retrieving",true);
+		Thread thread = new Thread(){
+		
+			public void run(){
+				try {
+					synchronized(object){
+						object.wait(10000);
+					}
+				} catch (InterruptedException e) {
+					e.printStackTrace();
+				}
+				dismissProgressDialog();
+			}
+		};
+		thread.start();
 	}
 	
 	/** The function is called when no battery data is received, but progress dialog 
@@ -293,15 +334,35 @@ public class NodeDiscovery extends Activity{
 	 * 
 	 */
 	
-	public static void dismissProgressDialog(){
-		if(progressDialog !=null){
+	public void dismissProgressDialog(){
+		if(progressDialog.isShowing()){
+			Message msg = Message.obtain();
 			progressDialog.dismiss();
-			synchronized(object){
-				object.notify();
+			if(txReceived){
+				msg.arg1 = 1;
+				txReceived = false;
 			}
+			else{
+				msg.arg1 = 0;
+			}
+			alertDialogHandler.sendMessage(msg);
 		}
 	}
 
+	/**
+	 * 
+	 * @param title
+	 * @param message
+	 */
+	private void showAlertDialog(String title, String message)
+    {
+      AlertDialog.Builder localBuilder = new AlertDialog.Builder(this);
+      localBuilder.setTitle(title);
+      localBuilder.setMessage(message);
+      localBuilder.setPositiveButton("OK", null);
+      localBuilder.show();
+    }
+	
 	/** All registers to be unregistered. 
 	 * 
 	 */
