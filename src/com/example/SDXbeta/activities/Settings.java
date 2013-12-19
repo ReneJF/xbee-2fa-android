@@ -42,7 +42,7 @@ public class Settings extends Activity{
 		setContentView(R.layout.settings_layout);
 		spinner = (Spinner) findViewById(R.id.spinner4);
 		applySettingsButton = (Button) findViewById(R.id.applySettingsButton);
-		changeAPCheckBox = (CheckBox) findViewById(R.id.changeAP);
+//		changeAPCheckBox = (CheckBox) findViewById(R.id.changeAP);
 		baudMap = new HashMap<Integer,Integer>();
 		int[] baudNumbers = new int[]{0,1,2,3,4,5,6,7};
 		int[] baudRates = new int[]{1200,2400,4800,9600,19200,38400,57600,115200};
