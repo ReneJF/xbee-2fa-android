@@ -72,7 +72,13 @@
                 <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
             </intent-filter>
         </activity>
-        
+        <activity android:name=".activities.LedOnOff">
+            <!--<intent-filter>-->
+                <!--<action android:name="android.intent.action.MAIN" />-->
+                <!--<category android:name="android.intent.category.LAUNCHER" />-->
+            <!--</intent-filter>-->
+        </activity>
+
         <service android:name="com.example.xbee_i2r.ReadService"></service>
         <service android:name="com.example.xbee_i2r.BatteryService"></service>
         <service android:name="com.example.xbee_i2r.DeleteSharedPreferences"></service>
