@@ -265,9 +265,11 @@ public class NodeDiscovery extends Activity{
 			public void onItemClick(AdapterView<?> arg0, View view, int pos,
 					long arg3) {
 				if(InitializeDevice.isConnected()){
-					Intent intent = new Intent(context,RemoteXBeeInfo.class);
-					intent.putExtra("MYAddress", nodeList.get(pos).getAddr16());
-					intent.putExtra("channel",nodeList.get(pos).getChannel());
+//					Intent intent = new Intent(context,RemoteXBeeInfo.class);
+//					intent.putExtra("MYAddress", nodeList.get(pos).getAddr16());
+//					intent.putExtra("channel",nodeList.get(pos).getChannel());
+
+                    Intent intent = new Intent(context, LedOnOff.class);
 					startActivity(intent);
 				}
 			}
