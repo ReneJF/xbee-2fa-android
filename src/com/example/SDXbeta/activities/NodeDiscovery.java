@@ -88,7 +88,7 @@ public class NodeDiscovery extends Activity{
 		String dateString = null;
 		int int1,int2,int3;
 		if((dateString = pref.getString("Date", null)) != null ){
-			lastRefreshed.setText("  Last refreshed : " + "\n" + dateString); // Displays the date and time of the last 'Node Discovery' performed. 
+			lastRefreshed.setText("Last refreshed" + "\n" + dateString); // Displays the date and time of the last 'Node Discovery' performed.
 		}
 		
 		// The following while loop extracts previously saved nodes and displays them as a list.
