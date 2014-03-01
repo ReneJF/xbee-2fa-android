@@ -158,7 +158,14 @@ public class XCTU extends Activity {
             startActivity(intent);
 
         } else if (itemId == R.id.tabXCTU) {
-        } else if (itemId == R.id.tabND) {
+        }
+
+        else if (itemId == R.id.tab2FA) {
+            intent = new Intent(context, TwoFactorAuthenticationLogin.class);
+            startActivity(intent);
+        }
+
+        else if (itemId == R.id.tabND) {
             intent = new Intent(context, NodeDiscovery.class);
             startActivity(intent);
 
