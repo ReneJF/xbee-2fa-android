@@ -12,6 +12,7 @@ import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
+import com.example.SDXbeta.AuthServer;
 import com.example.SDXbeta.R;
 import com.example.SDXbeta.SimpleCrypto;
 import com.example.xbee_i2r.*;
@@ -66,7 +67,6 @@ public class TFALogin extends Activity {
     private FT_Device ftDev;
     private BroadcastReceiver receiver;
     int[] revData;
-    private static final String SERVER_URL = "https://172.22.194.45:8000/";
 
     protected void onStart() {
         super.onStart();
@@ -116,7 +116,7 @@ public class TFALogin extends Activity {
     public void onSubmitClicked(View view) {
         editTextUsername = (EditText)findViewById(R.id.editTextUsername);
         editTextPassword = (EditText)findViewById(R.id.editTextPassword);
-        new LoginUserTask().execute(SERVER_URL + "login");
+        new LoginUserTask().execute(AuthServer.SERVER_URL + "login");
     }
 
     public void onSendDataClicked(View view) {
@@ -167,7 +167,8 @@ public class TFALogin extends Activity {
         Toast toast;
 
         protected Integer doInBackground(String... urls) {
-            DefaultHttpClient httpClient = getNewHttpClient();
+            AuthServer authServer = new AuthServer();
+            DefaultHttpClient httpClient = authServer.getNewHttpClient();
 
             // Set username and password for request
             CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
@@ -274,78 +275,27 @@ public class TFALogin extends Activity {
         protected void onPostExecute(Integer statusCode) {
             // User exists; login successful
             if (statusCode == 200) {
-                // TODO start new activity, passing it the credentials
                 toast = Toast.makeText(getBaseContext(), "Login successful!", Toast.LENGTH_SHORT);
-                toast.show();
+
+                // Start new activity, passing it the credentials
+                Intent intent = new Intent(getBaseContext(), TFARequest.class);
+                intent.putExtra("username", editTextUsername.getText().toString());
+                intent.putExtra("password", editTextPassword.getText().toString());
+
+                startActivity(intent);
             }
 
             // Username/password don't match
             else if (statusCode == 401) {
                 toast = Toast.makeText(getBaseContext(), "Username/password don't match. Please try again.", Toast.LENGTH_SHORT);
-                toast.show();
             }
 
             // some other error occurred
             else {
                 toast = Toast.makeText(getBaseContext(), "An error occurred. Please try again.", Toast.LENGTH_SHORT);
-                toast.show();
             }
-        }
 
-        public DefaultHttpClient getNewHttpClient() {
-            try {
-                KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-                trustStore.load(null, null);
-
-                SSLSocketFactory sf = new MySSLSocketFactory(trustStore);
-                sf.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
-
-                HttpParams params = new BasicHttpParams();
-                HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
-                HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
-
-                SchemeRegistry registry = new SchemeRegistry();
-                registry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
-                registry.register(new Scheme("https", sf, 443));
-
-                ClientConnectionManager ccm = new ThreadSafeClientConnManager(params, registry);
-
-                return new DefaultHttpClient(ccm, params);
-            } catch (Exception e) {
-                return new DefaultHttpClient();
-            }
-        }
-    }
-
-    private class MySSLSocketFactory extends SSLSocketFactory {
-        SSLContext sslContext = SSLContext.getInstance("TLS");
-
-        public MySSLSocketFactory(KeyStore truststore) throws NoSuchAlgorithmException, KeyManagementException, KeyStoreException, UnrecoverableKeyException {
-            super(truststore);
-
-            TrustManager tm = new X509TrustManager() {
-                public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-                }
-
-                public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
-                }
-
-                public X509Certificate[] getAcceptedIssuers() {
-                    return null;
-                }
-            };
-
-            sslContext.init(null, new TrustManager[] { tm }, null);
-        }
-
-        @Override
-        public Socket createSocket(Socket socket, String host, int port, boolean autoClose) throws IOException, UnknownHostException {
-            return sslContext.getSocketFactory().createSocket(socket, host, port, autoClose);
-        }
-
-        @Override
-        public Socket createSocket() throws IOException {
-            return sslContext.getSocketFactory().createSocket();
+            toast.show();
         }
     }
 }

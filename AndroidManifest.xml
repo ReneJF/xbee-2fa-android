@@ -80,6 +80,7 @@
             <!--</intent-filter>-->
         </activity>
         <activity android:name=".activities.TFALogin"/>
+        <activity android:name=".activities.TFARequest"/>
 
         <service android:name="com.example.xbee_i2r.ReadService"></service>
         <service android:name="com.example.xbee_i2r.BatteryService"></service>
