@@ -65,8 +65,6 @@ public class TFARequest extends Activity {
         // NodeId
         // timestamp
 
-        byte[] key = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7 };
-
         try {
             String nonce = Short.toString((short) Math.floor(Math.random() * Short.MAX_VALUE));
             String deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID); // Returns hex string of device identifier
@@ -85,7 +83,7 @@ public class TFARequest extends Activity {
             System.arraycopy(hexNodeId, 0, result, hexNonce.length + hexDeviceId.length, hexNodeId.length);
             System.arraycopy(hexTimestamp, 0, result, hexNonce.length + hexDeviceId.length + hexNodeId.length, hexTimestamp.length);
 
-            result = SimpleCrypto.encrypt(key, result);
+            result = SimpleCrypto.encrypt(SimpleCrypto.toByte(authKey), result);
 
             int[] payload = new int[result.length];
 
