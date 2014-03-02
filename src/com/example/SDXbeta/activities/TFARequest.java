@@ -1,15 +1,19 @@
 package com.example.SDXbeta.activities;
 
 import android.app.Activity;
-import android.content.Intent;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 import com.example.SDXbeta.AuthServer;
 import com.example.SDXbeta.R;
+import com.example.SDXbeta.SimpleCrypto;
+import com.example.xbee_i2r.InitializeDevice;
+import com.example.xbee_i2r.TxRequest16;
+import com.example.xbee_i2r.XBeeAddress16;
+import com.example.xbee_i2r.XBeePacket;
+import com.ftdi.j2xx.FT_Device;
 import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -24,6 +28,7 @@ import org.json.JSONObject;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.ByteBuffer;
 
 /**
  * Created by sahil on 3/3/14.
@@ -32,6 +37,10 @@ public class TFARequest extends Activity {
     EditText editTextNodeId;
     String username;
     String password;
+    private FT_Device ftDev;
+    private String authKey;
+    private String nodeXbee;
+
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -40,6 +49,8 @@ public class TFARequest extends Activity {
         // Get username/password from intent (sent by Login activity)
         username = getIntent().getStringExtra("username");
         password = getIntent().getStringExtra("password");
+
+        ftDev = InitializeDevice.getDevice();
     }
 
     public void onRequestKeyClicked(View view) {
@@ -48,16 +59,66 @@ public class TFARequest extends Activity {
     }
 
     public void onRequest2FAClicked(View view) {
-        // TODO request node for 2FA
         // Request format (encrypted)
         // Nonce
         // IMEI/device ID
         // NodeId
         // timestamp
+
+        byte[] key = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7 };
+
+        try {
+            String nonce = Short.toString((short) Math.floor(Math.random() * Short.MAX_VALUE));
+            String deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID); // Returns hex string of device identifier
+            Short nodeId = Short.parseShort(editTextNodeId.getText().toString(), 16);
+            String timestamp = Long.toHexString(System.currentTimeMillis() / 1000);
+
+            byte[] hexNonce = SimpleCrypto.toByte(nonce); // 2 bytes
+            byte[] hexDeviceId = SimpleCrypto.toByte(deviceId); // 8 bytes
+            byte[] hexNodeId = { (byte) ((nodeId >> 8) & 0xFF), (byte) (nodeId & 0xFF) }; // 2 bytes
+            byte[] hexTimestamp = SimpleCrypto.toByte(timestamp); // 4 bytes
+
+            byte[] result = new byte[hexNonce.length + hexDeviceId.length + hexNodeId.length + hexTimestamp.length];
+
+            System.arraycopy(hexNonce, 0, result, 0, hexNonce.length);
+            System.arraycopy(hexDeviceId, 0, result, hexNonce.length, hexDeviceId.length);
+            System.arraycopy(hexNodeId, 0, result, hexNonce.length + hexDeviceId.length, hexNodeId.length);
+            System.arraycopy(hexTimestamp, 0, result, hexNonce.length + hexDeviceId.length + hexNodeId.length, hexTimestamp.length);
+
+            result = SimpleCrypto.encrypt(key, result);
+
+            int[] payload = new int[result.length];
+
+            for (int i = 0; i < result.length; i++) {
+                payload[i] = result[i];
+            }
+
+            XBeeAddress16 destination = new XBeeAddress16(0xFF, 0xFF);
+
+            TxRequest16 request = new TxRequest16(destination, payload);
+            XBeePacket packet = new XBeePacket(request.getFrameData());
+
+            byte[] outData = new byte[packet.getIntegerArray().length];
+
+            for(int k = 0; k < packet.getIntegerArray().length; k++){
+                outData[k] = (byte) (packet.getIntegerArray()[k] & 0xff);
+            }
+
+            synchronized(ftDev){
+                if(ftDev.isOpen() == false){
+                    return;
+                }
+
+                ftDev.write(outData,outData.length);
+            }
+        }
+
+        catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private class RequestKeyTask extends AsyncTask<String, Void, String> {
-        String authKey;
         Toast toast;
 
         protected String doInBackground(String... urls) {
@@ -89,7 +150,9 @@ public class TFARequest extends Activity {
                     }
 
                     JSONObject nodeObject = new JSONObject(stringBuilder.toString());
-                    return nodeObject.getString("authKey");
+
+                    authKey = nodeObject.getString("authKey");
+                    return authKey;
                 }
             }
             catch (ClientProtocolException e) {
@@ -101,7 +164,7 @@ public class TFARequest extends Activity {
                 e.printStackTrace();
             }
 
-            return authKey;
+            return null;
         }
 
         protected void onPostExecute(String authKey) {

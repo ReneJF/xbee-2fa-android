@@ -179,90 +179,11 @@ public class TFALogin extends Activity {
 
             httpClient.setCredentialsProvider(credentialsProvider);
 
-//            HttpPost httpPost = new HttpPost(urls[0]); // TODO change to GET
             HttpGet httpGet = new HttpGet(urls[0]);
-
-//            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
-//            nameValuePairs.add(new BasicNameValuePair("username", editTextUsername.getText().toString()));
-//            nameValuePairs.add(new BasicNameValuePair("password", editTextPassword.getText().toString()));
-
-//            try {
-//                httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs));
-//            } catch (UnsupportedEncodingException e) {
-//                e.printStackTrace();
-//            }
 
             try {
                 HttpResponse response = httpClient.execute(httpGet);
-
                 statusCode = response.getStatusLine().getStatusCode();
-                // Success; username/password is correct
-//                if (statusCode == 200) {
-//                    Log.d("USER LOGIN", " SUCCESS");
-
-                    // Request 2FA authentication with sensor node
-                    // TODO start new activity
-//                    HttpGet httpGet = new HttpGet("http://172.22.83.134:4000/key/209");
-//                    response = httpClient.execute(httpGet);
-//
-//                    BufferedReader rd = new BufferedReader(
-//                            new InputStreamReader(response.getEntity().getContent()));
-//
-//                    StringBuffer result = new StringBuffer();
-//                    String line;
-//
-//                    while ((line = rd.readLine()) != null) {
-//                        result.append(line);
-//                    }
-//
-//                    Log.d("KEY RESULT: ", result.toString());
-//
-//                    try {
-//                        XBeeAddress16 destination = new XBeeAddress16(0xFF, 0xFF);
-//                        int[] payload = new int[] { 0x00, 0x01, 0x02, 0x03 };
-//
-//                        TxRequest16 request = new TxRequest16(destination, payload);
-//                        XBeePacket packet = new XBeePacket(request.getFrameData());
-//
-//                        byte[] outData = new byte[packet.getIntegerArray().length];
-//
-//                        for(int j=0;j<packet.getIntegerArray().length;j++){
-//                            outData[j] = (byte) (packet.getIntegerArray()[j] & 0xff);
-//                        }
-//
-//                        synchronized(ftDev){
-//                            if(ftDev.isOpen() == false){
-//                                return 1L;
-//                            }
-//
-//                            ftDev.write(outData,outData.length);
-//                        }
-//                    }
-//
-//                    catch (NullPointerException e) {
-//                        e.printStackTrace();
-//                    }
-
-//                }
-
-                // Unauthorized; try again
-//                else if (statusCode == 401) {
-//                    Log.d("USER LOGIN", " FAILURE");
-//                }
-
-//                HttpEntity entity = response.getEntity();
-//
-//                StringBuilder sb = new StringBuilder();
-////                try {
-//                BufferedReader reader = new BufferedReader(new InputStreamReader(entity.getContent()), 65728);
-//                String line;
-//
-//                while ((line = reader.readLine()) != null) {
-//                    sb.append(line);
-//                }
-//
-//                Log.e("RESPONSE LINE: ", line);
-//                }
             } catch (ClientProtocolException e) {
                 e.printStackTrace();
             } catch (IOException e) {
