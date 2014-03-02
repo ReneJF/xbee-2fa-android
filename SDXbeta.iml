@@ -27,6 +27,7 @@
     <orderEntry type="module" module-name="XBEE_I2R" />
     <orderEntry type="library" name="d2xx" level="project" />
     <orderEntry type="library" name="gson-2.2.4" level="project" />
+    <orderEntry type="library" name="bcprov-jdk15on-150" level="project" />
   </component>
 </module>
 
