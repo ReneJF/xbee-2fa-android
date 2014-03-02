@@ -1,18 +1,20 @@
 package com.example.SDXbeta.activities;
 
 import android.app.Activity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 import com.example.SDXbeta.AuthServer;
 import com.example.SDXbeta.R;
 import com.example.SDXbeta.SimpleCrypto;
-import com.example.xbee_i2r.InitializeDevice;
-import com.example.xbee_i2r.TxRequest16;
-import com.example.xbee_i2r.XBeeAddress16;
-import com.example.xbee_i2r.XBeePacket;
+import com.example.xbee_i2r.*;
 import com.ftdi.j2xx.FT_Device;
 import org.apache.http.HttpResponse;
 import org.apache.http.auth.AuthScope;
@@ -37,9 +39,67 @@ public class TFARequest extends Activity {
     EditText editTextNodeId;
     String username;
     String password;
+    Toast toast;
     private FT_Device ftDev;
+    private BroadcastReceiver receiver;
     private String authKey;
-    private String nodeXbee;
+    private String xbeeNodeId;
+    private String deviceId;
+    private String fioNonce;
+    private String nonce;
+    int[] responseData;
+
+    protected void onStart() {
+        super.onStart();
+
+        IntentFilter filter = new IntentFilter(ReadService.TFA_REQUEST_ACTION);
+
+        receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                responseData = intent.getIntArrayExtra("responseData");
+                Boolean verified = true;
+
+                // Get node id and compare
+                byte[] hexNodeId = { (byte) responseData[0], (byte) responseData[1] };
+                String nodeId = SimpleCrypto.toHex(hexNodeId);
+                nodeId = nodeId.replaceAll("^0+", "");
+
+                if (!xbeeNodeId.toUpperCase().equals(nodeId)) {
+                    verified = false;
+                }
+
+                // Get Device ID and compare
+                byte[] hexDeviceId = new byte[8];
+                for (int i = 0; i < hexDeviceId.length; i++) {
+                    hexDeviceId[i] = (byte) responseData[i + 2];
+                }
+
+                if (!deviceId.toUpperCase().equals(SimpleCrypto.toHex(hexDeviceId))) {
+                    verified = false;
+                }
+
+                // Get nonce and compare
+                byte[] hexNonce = { (byte) responseData[12], (byte) responseData[13] };
+
+                if (!nonce.toUpperCase().equals(SimpleCrypto.toHex(hexNonce))) {
+                    verified = false;
+                }
+
+                // Get Fio nonce
+                byte[] hexFioNonce = { (byte) responseData[10], (byte) responseData[11] };
+                fioNonce = SimpleCrypto.toHex(hexFioNonce);
+
+                // Get timestamp
+                byte[] hexTimestamp = { (byte) responseData[14], (byte) responseData[15], (byte) responseData[16], (byte) responseData[17] };
+
+                // If verified is still true, go ahead
+                toast = Toast.makeText(getBaseContext(), "Verified by node, requesting server for 2FA key", Toast.LENGTH_LONG);
+                toast.show();
+            }
+        };
+        registerReceiver(receiver,filter);
+    }
 
 
     public void onCreate(Bundle savedInstanceState) {
@@ -55,7 +115,8 @@ public class TFARequest extends Activity {
 
     public void onRequestKeyClicked(View view) {
         editTextNodeId = (EditText) findViewById(R.id.editTextNodeId);
-        new RequestKeyTask().execute(AuthServer.SERVER_URL + "keys/" + editTextNodeId.getText().toString());
+        xbeeNodeId = editTextNodeId.getText().toString();
+        new RequestKeyTask().execute(AuthServer.SERVER_URL + "keys/" + xbeeNodeId);
     }
 
     public void onRequest2FAClicked(View view) {
@@ -66,9 +127,9 @@ public class TFARequest extends Activity {
         // timestamp
 
         try {
-            String nonce = Short.toString((short) Math.floor(Math.random() * Short.MAX_VALUE));
-            String deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID); // Returns hex string of device identifier
-            Short nodeId = Short.parseShort(editTextNodeId.getText().toString(), 16);
+            nonce = Short.toString((short) Math.floor(Math.random() * Short.MAX_VALUE));
+            deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID); // Returns hex string of device identifier
+            Short nodeId = Short.parseShort(xbeeNodeId, 16);
             String timestamp = Long.toHexString(System.currentTimeMillis() / 1000);
 
             byte[] hexNonce = SimpleCrypto.toByte(nonce); // 2 bytes
@@ -117,7 +178,6 @@ public class TFARequest extends Activity {
     }
 
     private class RequestKeyTask extends AsyncTask<String, Void, String> {
-        Toast toast;
 
         protected String doInBackground(String... urls) {
             AuthServer authServer = new AuthServer();
