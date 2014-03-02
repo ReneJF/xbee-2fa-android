@@ -5,32 +5,59 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.net.Credentials;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.provider.*;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.ToggleButton;
+import com.example.SDXbeta.MyHttpClient;
 import com.example.SDXbeta.R;
+import com.example.SDXbeta.SimpleCrypto;
 import com.example.xbee_i2r.*;
 import com.ftdi.j2xx.FT_Device;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
+import org.apache.http.HttpVersion;
 import org.apache.http.NameValuePair;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
+import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
+import org.apache.http.conn.ClientConnectionManager;
+import org.apache.http.conn.scheme.PlainSocketFactory;
+import org.apache.http.conn.scheme.Scheme;
+import org.apache.http.conn.scheme.SchemeRegistry;
+import org.apache.http.conn.ssl.SSLSocketFactory;
+import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
 import org.apache.http.message.BasicNameValuePair;
+import org.apache.http.params.BasicHttpParams;
+import org.apache.http.params.HttpParams;
+import org.apache.http.params.HttpProtocolParams;
+import org.apache.http.protocol.HTTP;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
+import javax.net.ssl.*;
+import javax.net.ssl.TrustManagerFactory;
+import java.io.*;
+import java.net.Socket;
 import java.net.URL;
+import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
+import java.security.*;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,6 +70,7 @@ public class TwoFactorAuthenticationLogin extends Activity {
     private FT_Device ftDev;
     private BroadcastReceiver receiver;
     int[] revData;
+    private static final String SERVER_URL = "https://10.0.1.2:8000/";
 
     protected void onStart() {
         super.onStart();
@@ -92,13 +120,99 @@ public class TwoFactorAuthenticationLogin extends Activity {
     public void onSubmitClicked(View view) {
         editTextUsername = (EditText)findViewById(R.id.editTextUsername);
         editTextPassword = (EditText)findViewById(R.id.editTextPassword);
-        new LoginUserTask().execute("http://localhost:4000/login");
+        new LoginUserTask().execute(SERVER_URL + "api");
+    }
+
+    public void onSendDataClicked(View view) {
+        byte[] data = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x0, 0x1, 0x2, 0x3, 0x4, 0x0, 0x1, 0x2, 0x3, 0x4, 0x0, 0x1, 0x2, 0x3, 0x4 };
+        byte[] key = { 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x0, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7 };
+
+        try {
+            String deviceId = Settings.Secure.getString(getContentResolver(), Settings.Secure.ANDROID_ID);
+            byte[] result = SimpleCrypto.toByte(deviceId);
+//            byte[] result = SimpleCrypto.encrypt(key, data);
+
+            ByteBuffer byteBuffer = ByteBuffer.wrap(result);
+
+            int[] payload = new int[result.length];
+            for (int i = 0; i < result.length; i++) {
+                payload[i] = (int) result[i];
+            }
+
+
+            XBeeAddress16 destination = new XBeeAddress16(0xFF, 0xFF);
+//            int[] payload = new int[] { isOn ? 0xFF : 0x0 };
+
+            TxRequest16 request = new TxRequest16(destination, payload);
+            XBeePacket packet = new XBeePacket(request.getFrameData());
+
+            byte[] outData = new byte[packet.getIntegerArray().length];
+
+            for(int j=0;j<packet.getIntegerArray().length;j++){
+                outData[j] = (byte) (packet.getIntegerArray()[j] & 0xff);
+            }
+
+            synchronized(ftDev){
+                if(ftDev.isOpen() == false){
+                    return;
+                }
+
+                ftDev.write(outData,outData.length);
+            }
+        }
+
+        catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private class LoginUserTask extends AsyncTask<String, Void, Long> {
         protected Long doInBackground(String... urls) {
-            HttpClient httpClient = new DefaultHttpClient();
-            HttpPost httpPost = new HttpPost("http://172.22.83.134:4000/login");
+           /* try {
+                CertificateFactory cf = CertificateFactory.getInstance("X.509");
+//                InputStream caInput = new BufferedInputStream(new FileInputStream("load-der.crt"));
+                Certificate ca;
+
+
+//                ca = cf.generateCertificate(caInput);
+//                Log.d("CERTIFICATE! ", "ca=" + ((X509Certificate) ca).getSubjectDN());
+
+                // Create KeyStore containing trusted CAs
+                String keyStoreType = KeyStore.getDefaultType();
+//                KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+                KeyStore keyStore = KeyStore.getInstance("BKS");
+
+                InputStream in2 = getBaseContext().getResources().openRawResource(R.raw.mystore);
+                keyStore.load(in2, "123456".toCharArray());
+
+//                keyStore.load(null, null);
+//                keyStore.setCertificateEntry("ca", ca);
+
+                // Create a TrustManager that trusts the CAs in our KeyStore
+                String tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
+//                TrustManagerFactory tmf = TrustManagerFactory.getInstance(tmfAlgorithm);
+                TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
+                tmf.init(keyStore);
+
+                // Create an SSLContext that uses our TrustManager
+                SSLContext context = SSLContext.getInstance("TLS");
+                context.init(null, tmf.getTrustManagers(), null);
+
+                // Tell the URLConnection to use a SocketFactory from our SSLContext
+                URL url = new URL(urls[0]);
+                HttpsURLConnection urlConnection = (HttpsURLConnection) url.openConnection();
+                urlConnection.setSSLSocketFactory(context.getSocketFactory());
+
+                InputStream in = urlConnection.getInputStream();
+                Log.d("INPUT STREAM", in.toString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }*/
+
+            ////////////////////////////////////////////////////////////
+//            HttpClient httpClient = new MyHttpClient(getBaseContext());
+            HttpClient httpClient = getNewHttpClient();
+            HttpPost httpPost = new HttpPost(urls[0]);
 
             List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
             nameValuePairs.add(new BasicNameValuePair("username", editTextUsername.getText().toString()));
@@ -189,6 +303,68 @@ public class TwoFactorAuthenticationLogin extends Activity {
 
         protected void onPostExecute(Long result) {
 
+        }
+
+        public HttpClient getNewHttpClient() {
+            try {
+                KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
+                trustStore.load(null, null);
+
+                SSLSocketFactory sf = new MySSLSocketFactory(trustStore);
+                sf.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
+
+                HttpParams params = new BasicHttpParams();
+                HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
+                HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
+
+                SchemeRegistry registry = new SchemeRegistry();
+                registry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
+                registry.register(new Scheme("https", sf, 443));
+
+                ClientConnectionManager ccm = new ThreadSafeClientConnManager(params, registry);
+
+                CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+                credentialsProvider.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT), new UsernamePasswordCredentials("admin", "admin"));
+
+                DefaultHttpClient httpClient = new DefaultHttpClient(ccm, params);
+                httpClient.setCredentialsProvider(credentialsProvider);
+
+                return httpClient;
+            } catch (Exception e) {
+                return new DefaultHttpClient();
+            }
+        }
+    }
+
+    private class MySSLSocketFactory extends SSLSocketFactory {
+        SSLContext sslContext = SSLContext.getInstance("TLS");
+
+        public MySSLSocketFactory(KeyStore truststore) throws NoSuchAlgorithmException, KeyManagementException, KeyStoreException, UnrecoverableKeyException {
+            super(truststore);
+
+            TrustManager tm = new X509TrustManager() {
+                public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+                }
+
+                public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+                }
+
+                public X509Certificate[] getAcceptedIssuers() {
+                    return null;
+                }
+            };
+
+            sslContext.init(null, new TrustManager[] { tm }, null);
+        }
+
+        @Override
+        public Socket createSocket(Socket socket, String host, int port, boolean autoClose) throws IOException, UnknownHostException {
+            return sslContext.getSocketFactory().createSocket(socket, host, port, autoClose);
+        }
+
+        @Override
+        public Socket createSocket() throws IOException {
+            return sslContext.getSocketFactory().createSocket();
         }
     }
 }
