@@ -79,7 +79,7 @@
                 <!--<category android:name="android.intent.category.LAUNCHER" />-->
             <!--</intent-filter>-->
         </activity>
-        <activity android:name=".activities.TwoFactorAuthenticationLogin"/>
+        <activity android:name=".activities.TFALogin"/>
 
         <service android:name="com.example.xbee_i2r.ReadService"></service>
         <service android:name="com.example.xbee_i2r.BatteryService"></service>

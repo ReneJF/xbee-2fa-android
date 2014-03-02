@@ -13,7 +13,6 @@ import com.example.xbee_i2r.ReadService;
 import com.example.xbee_i2r.SendCommands;
 import com.ftdi.j2xx.FT_Device;
 import com.google.gson.Gson;
-import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
@@ -24,7 +23,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.os.Bundle;
-import android.text.Editable;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -161,7 +159,7 @@ public class XCTU extends Activity {
         }
 
         else if (itemId == R.id.tab2FA) {
-            intent = new Intent(context, TwoFactorAuthenticationLogin.class);
+            intent = new Intent(context, TFALogin.class);
             startActivity(intent);
         }
 

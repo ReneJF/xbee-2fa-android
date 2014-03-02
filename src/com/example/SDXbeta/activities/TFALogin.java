@@ -5,22 +5,17 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
-import android.net.Credentials;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.provider.*;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.ToggleButton;
-import com.example.SDXbeta.MyHttpClient;
+import android.widget.Toast;
 import com.example.SDXbeta.R;
 import com.example.SDXbeta.SimpleCrypto;
 import com.example.xbee_i2r.*;
 import com.ftdi.j2xx.FT_Device;
-import org.apache.http.HttpEntity;
 import org.apache.http.HttpResponse;
 import org.apache.http.HttpVersion;
 import org.apache.http.NameValuePair;
@@ -46,17 +41,18 @@ import org.apache.http.params.HttpParams;
 import org.apache.http.params.HttpProtocolParams;
 import org.apache.http.protocol.HTTP;
 
-import javax.net.ssl.*;
-import javax.net.ssl.TrustManagerFactory;
-import java.io.*;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.net.Socket;
-import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
 import java.security.*;
-import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.List;
@@ -64,13 +60,13 @@ import java.util.List;
 /**
  * Created by sahil on 18/2/14.
  */
-public class TwoFactorAuthenticationLogin extends Activity {
+public class TFALogin extends Activity {
     EditText editTextUsername;
     EditText editTextPassword;
     private FT_Device ftDev;
     private BroadcastReceiver receiver;
     int[] revData;
-    private static final String SERVER_URL = "https://10.0.1.2:8000/";
+    private static final String SERVER_URL = "https://172.22.194.45:8000/";
 
     protected void onStart() {
         super.onStart();
@@ -120,7 +116,7 @@ public class TwoFactorAuthenticationLogin extends Activity {
     public void onSubmitClicked(View view) {
         editTextUsername = (EditText)findViewById(R.id.editTextUsername);
         editTextPassword = (EditText)findViewById(R.id.editTextPassword);
-        new LoginUserTask().execute(SERVER_URL + "api");
+        new LoginUserTask().execute(SERVER_URL + "login");
     }
 
     public void onSendDataClicked(View view) {
@@ -166,118 +162,92 @@ public class TwoFactorAuthenticationLogin extends Activity {
         }
     }
 
-    private class LoginUserTask extends AsyncTask<String, Void, Long> {
-        protected Long doInBackground(String... urls) {
-           /* try {
-                CertificateFactory cf = CertificateFactory.getInstance("X.509");
-//                InputStream caInput = new BufferedInputStream(new FileInputStream("load-der.crt"));
-                Certificate ca;
+    private class LoginUserTask extends AsyncTask<String, Void, Integer> {
+        Integer statusCode;
+        Toast toast;
 
+        protected Integer doInBackground(String... urls) {
+            DefaultHttpClient httpClient = getNewHttpClient();
 
-//                ca = cf.generateCertificate(caInput);
-//                Log.d("CERTIFICATE! ", "ca=" + ((X509Certificate) ca).getSubjectDN());
+            // Set username and password for request
+            CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+            credentialsProvider.setCredentials(
+                    new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
+                    new UsernamePasswordCredentials(editTextUsername.getText().toString(), editTextPassword.getText().toString())
+            );
 
-                // Create KeyStore containing trusted CAs
-                String keyStoreType = KeyStore.getDefaultType();
-//                KeyStore keyStore = KeyStore.getInstance(keyStoreType);
-                KeyStore keyStore = KeyStore.getInstance("BKS");
+            httpClient.setCredentialsProvider(credentialsProvider);
 
-                InputStream in2 = getBaseContext().getResources().openRawResource(R.raw.mystore);
-                keyStore.load(in2, "123456".toCharArray());
+//            HttpPost httpPost = new HttpPost(urls[0]); // TODO change to GET
+            HttpGet httpGet = new HttpGet(urls[0]);
 
-//                keyStore.load(null, null);
-//                keyStore.setCertificateEntry("ca", ca);
+//            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
+//            nameValuePairs.add(new BasicNameValuePair("username", editTextUsername.getText().toString()));
+//            nameValuePairs.add(new BasicNameValuePair("password", editTextPassword.getText().toString()));
 
-                // Create a TrustManager that trusts the CAs in our KeyStore
-                String tmfAlgorithm = TrustManagerFactory.getDefaultAlgorithm();
-//                TrustManagerFactory tmf = TrustManagerFactory.getInstance(tmfAlgorithm);
-                TrustManagerFactory tmf = TrustManagerFactory.getInstance("X509");
-                tmf.init(keyStore);
-
-                // Create an SSLContext that uses our TrustManager
-                SSLContext context = SSLContext.getInstance("TLS");
-                context.init(null, tmf.getTrustManagers(), null);
-
-                // Tell the URLConnection to use a SocketFactory from our SSLContext
-                URL url = new URL(urls[0]);
-                HttpsURLConnection urlConnection = (HttpsURLConnection) url.openConnection();
-                urlConnection.setSSLSocketFactory(context.getSocketFactory());
-
-                InputStream in = urlConnection.getInputStream();
-                Log.d("INPUT STREAM", in.toString());
-            } catch (Exception e) {
-                e.printStackTrace();
-            }*/
-
-            ////////////////////////////////////////////////////////////
-//            HttpClient httpClient = new MyHttpClient(getBaseContext());
-            HttpClient httpClient = getNewHttpClient();
-            HttpPost httpPost = new HttpPost(urls[0]);
-
-            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
-            nameValuePairs.add(new BasicNameValuePair("username", editTextUsername.getText().toString()));
-            nameValuePairs.add(new BasicNameValuePair("password", editTextPassword.getText().toString()));
+//            try {
+//                httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs));
+//            } catch (UnsupportedEncodingException e) {
+//                e.printStackTrace();
+//            }
 
             try {
-                httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs));
-            } catch (UnsupportedEncodingException e) {
-                e.printStackTrace();
-            }
+                HttpResponse response = httpClient.execute(httpGet);
 
-            try {
-                HttpResponse response = httpClient.execute(httpPost);
-                Log.d("HTTP RESPONSE: ", response.toString());
-
-                Integer statusCode = response.getStatusLine().getStatusCode();
-
-                if (statusCode == 200) {
-                    Log.d("USER LOGIN", " SUCCESS");
+                statusCode = response.getStatusLine().getStatusCode();
+                // Success; username/password is correct
+//                if (statusCode == 200) {
+//                    Log.d("USER LOGIN", " SUCCESS");
 
                     // Request 2FA authentication with sensor node
-                    HttpGet httpGet = new HttpGet("http://172.22.83.134:4000/key/209");
-                    response = httpClient.execute(httpGet);
+                    // TODO start new activity
+//                    HttpGet httpGet = new HttpGet("http://172.22.83.134:4000/key/209");
+//                    response = httpClient.execute(httpGet);
+//
+//                    BufferedReader rd = new BufferedReader(
+//                            new InputStreamReader(response.getEntity().getContent()));
+//
+//                    StringBuffer result = new StringBuffer();
+//                    String line;
+//
+//                    while ((line = rd.readLine()) != null) {
+//                        result.append(line);
+//                    }
+//
+//                    Log.d("KEY RESULT: ", result.toString());
+//
+//                    try {
+//                        XBeeAddress16 destination = new XBeeAddress16(0xFF, 0xFF);
+//                        int[] payload = new int[] { 0x00, 0x01, 0x02, 0x03 };
+//
+//                        TxRequest16 request = new TxRequest16(destination, payload);
+//                        XBeePacket packet = new XBeePacket(request.getFrameData());
+//
+//                        byte[] outData = new byte[packet.getIntegerArray().length];
+//
+//                        for(int j=0;j<packet.getIntegerArray().length;j++){
+//                            outData[j] = (byte) (packet.getIntegerArray()[j] & 0xff);
+//                        }
+//
+//                        synchronized(ftDev){
+//                            if(ftDev.isOpen() == false){
+//                                return 1L;
+//                            }
+//
+//                            ftDev.write(outData,outData.length);
+//                        }
+//                    }
+//
+//                    catch (NullPointerException e) {
+//                        e.printStackTrace();
+//                    }
 
-                    BufferedReader rd = new BufferedReader(
-                            new InputStreamReader(response.getEntity().getContent()));
+//                }
 
-                    StringBuffer result = new StringBuffer();
-                    String line;
-
-                    while ((line = rd.readLine()) != null) {
-                        result.append(line);
-                    }
-
-                    Log.d("KEY RESULT: ", result.toString());
-
-                    try {
-                        XBeeAddress16 destination = new XBeeAddress16(0xFF, 0xFF);
-                        int[] payload = new int[] { 0x00, 0x01, 0x02, 0x03 };
-
-                        TxRequest16 request = new TxRequest16(destination, payload);
-                        XBeePacket packet = new XBeePacket(request.getFrameData());
-
-                        byte[] outData = new byte[packet.getIntegerArray().length];
-
-                        for(int j=0;j<packet.getIntegerArray().length;j++){
-                            outData[j] = (byte) (packet.getIntegerArray()[j] & 0xff);
-                        }
-
-                        synchronized(ftDev){
-                            if(ftDev.isOpen() == false){
-                                return 1L;
-                            }
-
-                            ftDev.write(outData,outData.length);
-                        }
-                    }
-
-                    catch (NullPointerException e) {
-                        e.printStackTrace();
-                    }
-
-                } else if (statusCode == 401) {
-                    Log.d("USER LOGIN", " FAILURE");
-                }
+                // Unauthorized; try again
+//                else if (statusCode == 401) {
+//                    Log.d("USER LOGIN", " FAILURE");
+//                }
 
 //                HttpEntity entity = response.getEntity();
 //
@@ -298,14 +268,31 @@ public class TwoFactorAuthenticationLogin extends Activity {
                 e.printStackTrace();
             }
 
-            return 0L;
+            return statusCode;
         }
 
-        protected void onPostExecute(Long result) {
+        protected void onPostExecute(Integer statusCode) {
+            // User exists; login successful
+            if (statusCode == 200) {
+                // TODO start new activity, passing it the credentials
+                toast = Toast.makeText(getBaseContext(), "Login successful!", Toast.LENGTH_SHORT);
+                toast.show();
+            }
 
+            // Username/password don't match
+            else if (statusCode == 401) {
+                toast = Toast.makeText(getBaseContext(), "Username/password don't match. Please try again.", Toast.LENGTH_SHORT);
+                toast.show();
+            }
+
+            // some other error occurred
+            else {
+                toast = Toast.makeText(getBaseContext(), "An error occurred. Please try again.", Toast.LENGTH_SHORT);
+                toast.show();
+            }
         }
 
-        public HttpClient getNewHttpClient() {
+        public DefaultHttpClient getNewHttpClient() {
             try {
                 KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
                 trustStore.load(null, null);
@@ -323,13 +310,7 @@ public class TwoFactorAuthenticationLogin extends Activity {
 
                 ClientConnectionManager ccm = new ThreadSafeClientConnManager(params, registry);
 
-                CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-                credentialsProvider.setCredentials(new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT), new UsernamePasswordCredentials("admin", "admin"));
-
-                DefaultHttpClient httpClient = new DefaultHttpClient(ccm, params);
-                httpClient.setCredentialsProvider(credentialsProvider);
-
-                return httpClient;
+                return new DefaultHttpClient(ccm, params);
             } catch (Exception e) {
                 return new DefaultHttpClient();
             }
