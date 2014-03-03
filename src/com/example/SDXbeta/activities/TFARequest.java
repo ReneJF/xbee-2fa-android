@@ -63,54 +63,67 @@ public class TFARequest extends Activity {
             @Override
             public void onReceive(Context context, Intent intent) {
                 responseData = intent.getIntArrayExtra("responseData");
-                Boolean verified = true;
 
-                // Get node id and compare
-                byte[] hexNodeId = { (byte) responseData[0], (byte) responseData[1] };
-                String nodeId = SimpleCrypto.toHex(hexNodeId);
-                nodeId = nodeId.replaceAll("^0+", "");
-
-                if (!xbeeNodeId.toUpperCase().equals(nodeId)) {
-                    verified = false;
+                // Decrypt data
+                byte[] byteResponseData = new byte[responseData.length];
+                for (int i = 0; i < byteResponseData.length; i++) {
+                    byteResponseData[i] = (byte) responseData[i];
                 }
 
-                // Get Device ID and compare
-                byte[] hexDeviceId = new byte[8];
-                for (int i = 0; i < hexDeviceId.length; i++) {
-                    hexDeviceId[i] = (byte) responseData[i + 2];
+                try {
+//                    byteResponseData = SimpleCrypto.decrypt(SimpleCrypto.toByte(authKey), byteResponseData);
+
+                    Boolean verified = true;
+
+                    // Get node id and compare
+                    byte[] hexNodeId = { (byte) byteResponseData[0], (byte) byteResponseData[1] };
+                    String nodeId = SimpleCrypto.toHex(hexNodeId);
+                    nodeId = nodeId.replaceAll("^0+", "");
+
+                    if (!xbeeNodeId.toUpperCase().equals(nodeId)) {
+                        verified = false;
+                    }
+
+                    // Get Device ID and compare
+                    byte[] hexDeviceId = new byte[8];
+                    for (int i = 0; i < hexDeviceId.length; i++) {
+                        hexDeviceId[i] = (byte) byteResponseData[i + 2];
+                    }
+
+                    if (!deviceId.toUpperCase().equals(SimpleCrypto.toHex(hexDeviceId))) {
+                        verified = false;
+                    }
+
+                    // Get nonce and compare
+                    byte[] hexNonce = { (byte) byteResponseData[12], (byte) byteResponseData[13] };
+
+                    if (!nonce.toUpperCase().equals(SimpleCrypto.toHex(hexNonce))) {
+                        verified = false;
+                    }
+
+                    // Get Fio nonce
+                    byte[] hexFioNonce = { (byte) byteResponseData[10], (byte) byteResponseData[11] };
+                    nonceNode = SimpleCrypto.toHex(hexFioNonce);
+
+                    // Get timestamp
+                    byte[] hexTimestamp = { (byte) byteResponseData[14], (byte) byteResponseData[15], (byte) byteResponseData[16], (byte) byteResponseData[17] };
+
+                    // If verified is still true, go ahead
+                    if (verified) {
+                        toast = Toast.makeText(getBaseContext(), "Verified by node, requesting server for 2FA key", Toast.LENGTH_LONG);
+
+                        // Request for 2FA token
+                        new RequestTokenTask().execute(AuthServer.SERVER_URL + "token-requests");
+                    }
+
+                    else {
+                        toast = Toast.makeText(getBaseContext(), "Node verification failed", Toast.LENGTH_SHORT);
+                    }
+
+                    toast.show();
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-
-                if (!deviceId.toUpperCase().equals(SimpleCrypto.toHex(hexDeviceId))) {
-                    verified = false;
-                }
-
-                // Get nonce and compare
-                byte[] hexNonce = { (byte) responseData[12], (byte) responseData[13] };
-
-                if (!nonce.toUpperCase().equals(SimpleCrypto.toHex(hexNonce))) {
-                    verified = false;
-                }
-
-                // Get Fio nonce
-                byte[] hexFioNonce = { (byte) responseData[10], (byte) responseData[11] };
-                nonceNode = SimpleCrypto.toHex(hexFioNonce);
-
-                // Get timestamp
-                byte[] hexTimestamp = { (byte) responseData[14], (byte) responseData[15], (byte) responseData[16], (byte) responseData[17] };
-
-                // If verified is still true, go ahead
-                if (verified) {
-                    toast = Toast.makeText(getBaseContext(), "Verified by node, requesting server for 2FA key", Toast.LENGTH_LONG);
-
-                    // Request for 2FA token
-                    new RequestTokenTask().execute(AuthServer.SERVER_URL + "token-requests");
-                }
-
-                else {
-                    toast = Toast.makeText(getBaseContext(), "Node verification failed", Toast.LENGTH_SHORT);
-                }
-
-                toast.show();
             }
         };
         registerReceiver(receiver,filter);
