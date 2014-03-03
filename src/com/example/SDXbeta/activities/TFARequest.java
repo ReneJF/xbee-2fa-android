@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -17,20 +16,26 @@ import com.example.SDXbeta.SimpleCrypto;
 import com.example.xbee_i2r.*;
 import com.ftdi.j2xx.FT_Device;
 import org.apache.http.HttpResponse;
+import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.message.BasicNameValuePair;
 import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.nio.ByteBuffer;
+import java.io.UnsupportedEncodingException;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by sahil on 3/3/14.
@@ -45,7 +50,7 @@ public class TFARequest extends Activity {
     private String authKey;
     private String xbeeNodeId;
     private String deviceId;
-    private String fioNonce;
+    private String nonceNode;
     private String nonce;
     int[] responseData;
 
@@ -88,13 +93,23 @@ public class TFARequest extends Activity {
 
                 // Get Fio nonce
                 byte[] hexFioNonce = { (byte) responseData[10], (byte) responseData[11] };
-                fioNonce = SimpleCrypto.toHex(hexFioNonce);
+                nonceNode = SimpleCrypto.toHex(hexFioNonce);
 
                 // Get timestamp
                 byte[] hexTimestamp = { (byte) responseData[14], (byte) responseData[15], (byte) responseData[16], (byte) responseData[17] };
 
                 // If verified is still true, go ahead
-                toast = Toast.makeText(getBaseContext(), "Verified by node, requesting server for 2FA key", Toast.LENGTH_LONG);
+                if (verified) {
+                    toast = Toast.makeText(getBaseContext(), "Verified by node, requesting server for 2FA key", Toast.LENGTH_LONG);
+
+                    // Request for 2FA token
+                    new RequestTokenTask().execute(AuthServer.SERVER_URL + "token-requests");
+                }
+
+                else {
+                    toast = Toast.makeText(getBaseContext(), "Node verification failed", Toast.LENGTH_SHORT);
+                }
+
                 toast.show();
             }
         };
@@ -138,6 +153,8 @@ public class TFARequest extends Activity {
             byte[] hexTimestamp = SimpleCrypto.toByte(timestamp); // 4 bytes
 
             byte[] result = new byte[hexNonce.length + hexDeviceId.length + hexNodeId.length + hexTimestamp.length];
+
+            nonce = SimpleCrypto.toHex(hexNonce);
 
             System.arraycopy(hexNonce, 0, result, 0, hexNonce.length);
             System.arraycopy(hexDeviceId, 0, result, hexNonce.length, hexDeviceId.length);
@@ -238,6 +255,90 @@ public class TFARequest extends Activity {
             }
 
             toast.show();
+        }
+    }
+
+    // Request server for 2FA token
+    private class RequestTokenTask extends AsyncTask<String, Void, Boolean> {
+
+        protected Boolean doInBackground(String... urls) {
+            AuthServer authServer = new AuthServer();
+            DefaultHttpClient httpClient = authServer.getNewHttpClient();
+
+            // Set username and password for request
+            CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+            credentialsProvider.setCredentials(
+                    new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
+                    new UsernamePasswordCredentials(username, password)
+            );
+
+            httpClient.setCredentialsProvider(credentialsProvider);
+
+            // Make post request
+            HttpPost httpPost = new HttpPost(urls[0]);
+
+            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
+            nameValuePairs.add(new BasicNameValuePair("nodeId", xbeeNodeId));
+            nameValuePairs.add(new BasicNameValuePair("deviceId", deviceId));
+
+            try {
+                httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs));
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+
+            try {
+                HttpResponse response = httpClient.execute(httpPost);
+                Integer statusCode = response.getStatusLine().getStatusCode();
+
+                if (statusCode == 200) {
+                    // Get response content
+                    String line;
+                    StringBuilder stringBuilder = new StringBuilder();
+                    BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
+
+                    while ((line = bufferedReader.readLine()) != null) {
+                        stringBuilder.append(line);
+                    }
+
+                    JSONObject nodeObject = new JSONObject(stringBuilder.toString());
+
+//                    authKey = nodeObject.getString("nodeId");
+                    return true;
+                }
+            }
+            catch (ClientProtocolException e) {
+                e.printStackTrace();
+            }
+            catch (IOException e) {
+                e.printStackTrace();
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+
+            return false;
+        }
+
+        protected void onPostExecute(Boolean success) {
+            if (success) {
+                toast = Toast.makeText(getBaseContext(), "2FA token created and sent", Toast.LENGTH_SHORT);
+                toast.show();
+
+                // Start new activity, passing it the details
+                Intent intent = new Intent(getBaseContext(), TFAToken.class);
+                intent.putExtra("authKey", authKey);
+                intent.putExtra("deviceId", deviceId);
+                intent.putExtra("nodeId", xbeeNodeId);
+                intent.putExtra("nonceSelf", nonce);
+                intent.putExtra("nonceNode", nonceNode);
+
+                startActivity(intent);
+            }
+
+            else {
+                toast = Toast.makeText(getBaseContext(), "An error occurred", Toast.LENGTH_SHORT);
+                toast.show();
+            }
         }
     }
 }
