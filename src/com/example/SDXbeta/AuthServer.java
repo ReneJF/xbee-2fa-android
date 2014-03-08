@@ -1,6 +1,8 @@
 package com.example.SDXbeta;
 
 import org.apache.http.HttpVersion;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.conn.ClientConnectionManager;
 import org.apache.http.conn.scheme.PlainSocketFactory;
 import org.apache.http.conn.scheme.Scheme;
@@ -51,6 +53,19 @@ public class AuthServer {
         } catch (Exception e) {
             return new DefaultHttpClient();
         }
+    }
+
+    public DefaultHttpClient getNewHttpClient(String username, String password) {
+
+        DefaultHttpClient defaultHttpClient = getNewHttpClient();
+
+        // Set username and password for basic auth
+        defaultHttpClient.getCredentialsProvider().setCredentials(
+                new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
+                new UsernamePasswordCredentials(username, password)
+        );
+
+        return defaultHttpClient;
     }
 
     private class MySSLSocketFactory extends SSLSocketFactory {

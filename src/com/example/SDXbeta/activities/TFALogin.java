@@ -18,45 +18,16 @@ import com.example.SDXbeta.SimpleCrypto;
 import com.example.xbee_i2r.*;
 import com.ftdi.j2xx.FT_Device;
 import org.apache.http.HttpResponse;
-import org.apache.http.HttpVersion;
-import org.apache.http.NameValuePair;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.CredentialsProvider;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.conn.ClientConnectionManager;
-import org.apache.http.conn.scheme.PlainSocketFactory;
-import org.apache.http.conn.scheme.Scheme;
-import org.apache.http.conn.scheme.SchemeRegistry;
-import org.apache.http.conn.ssl.SSLSocketFactory;
 import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.BasicHttpParams;
-import org.apache.http.params.HttpParams;
-import org.apache.http.params.HttpProtocolParams;
-import org.apache.http.protocol.HTTP;
 
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.net.Socket;
-import java.net.UnknownHostException;
 import java.nio.ByteBuffer;
-import java.security.*;
-import java.security.cert.CertificateException;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Created by sahil on 18/2/14.
@@ -76,22 +47,6 @@ public class TFALogin extends Activity {
             @Override
             public void onReceive(Context context, Intent intent) {
                 revData = intent.getIntArrayExtra("reverseData");
-
-//                ToggleButton toggle = (ToggleButton) findViewById(R.id.toggleButton);
-//                toggle.setChecked(ledState == 0 ? false : true);
-
-//                TextView deviceId = (TextView) findViewById(R.id.deviceIdTextView);
-//                deviceId.setText(intent.getStringExtra("sourceAddress"));
-//
-//                TextView rssi = (TextView) findViewById(R.id.rssiTextView);
-//                rssi.setText(Integer.toString(intent.getIntExtra("rssi", 0)));
-
-//                if (intent.getIntExtra("ledState", null)Extra("XCTUValues") != null) {
-//                    XCTUValues values = gson.fromJson(intent.getStringExtra("XCTUValues"), XCTUValues.class);
-//                    fillUI(values);
-//                } else if (intent.getStringExtra("Response Status") != null) {
-//                    Toast.makeText(arg1, "Values Changed Successfully", Toast.LENGTH_SHORT).show();
-//                }
 
                 Log.d("REVERSED DATA: ", revData.toString());
             }
@@ -167,17 +122,7 @@ public class TFALogin extends Activity {
         Toast toast;
 
         protected Integer doInBackground(String... urls) {
-            AuthServer authServer = new AuthServer();
-            DefaultHttpClient httpClient = authServer.getNewHttpClient();
-
-            // Set username and password for request
-            CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-            credentialsProvider.setCredentials(
-                    new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
-                    new UsernamePasswordCredentials(editTextUsername.getText().toString(), editTextPassword.getText().toString())
-            );
-
-            httpClient.setCredentialsProvider(credentialsProvider);
+            DefaultHttpClient httpClient = new AuthServer().getNewHttpClient(editTextUsername.getText().toString(), editTextPassword.getText().toString());
 
             HttpGet httpGet = new HttpGet(urls[0]);
 

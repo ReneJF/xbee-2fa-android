@@ -17,14 +17,10 @@ import com.example.xbee_i2r.*;
 import com.ftdi.j2xx.FT_Device;
 import org.apache.http.HttpResponse;
 import org.apache.http.NameValuePair;
-import org.apache.http.auth.AuthScope;
-import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.CredentialsProvider;
 import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpPost;
-import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.message.BasicNameValuePair;
 import org.json.JSONException;
@@ -52,6 +48,7 @@ public class TFARequest extends Activity {
     private String deviceId;
     private String nonceNode;
     private String nonce;
+    private DefaultHttpClient httpClient;
     int[] responseData;
 
     protected void onStart() {
@@ -129,6 +126,12 @@ public class TFARequest extends Activity {
         registerReceiver(receiver,filter);
     }
 
+    @Override
+    protected void onStop(){
+        super.onStop();
+        unregisterReceiver(receiver);
+    }
+
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -137,6 +140,9 @@ public class TFARequest extends Activity {
         // Get username/password from intent (sent by Login activity)
         username = getIntent().getStringExtra("username");
         password = getIntent().getStringExtra("password");
+
+        // Create an HttpClient
+        httpClient = new AuthServer().getNewHttpClient(username, password);
 
         ftDev = InitializeDevice.getDevice();
     }
@@ -210,18 +216,7 @@ public class TFARequest extends Activity {
     private class RequestKeyTask extends AsyncTask<String, Void, String> {
 
         protected String doInBackground(String... urls) {
-            AuthServer authServer = new AuthServer();
-            DefaultHttpClient httpClient = authServer.getNewHttpClient();
             HttpGet httpGet = new HttpGet(urls[0]);
-
-            // Set username and password for request
-            CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-            credentialsProvider.setCredentials(
-                    new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
-                    new UsernamePasswordCredentials(username, password)
-            );
-
-            httpClient.setCredentialsProvider(credentialsProvider);
 
             try {
                 HttpResponse response = httpClient.execute(httpGet);
@@ -275,18 +270,6 @@ public class TFARequest extends Activity {
     private class RequestTokenTask extends AsyncTask<String, Void, Boolean> {
 
         protected Boolean doInBackground(String... urls) {
-            AuthServer authServer = new AuthServer();
-            DefaultHttpClient httpClient = authServer.getNewHttpClient();
-
-            // Set username and password for request
-            CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
-            credentialsProvider.setCredentials(
-                    new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
-                    new UsernamePasswordCredentials(username, password)
-            );
-
-            httpClient.setCredentialsProvider(credentialsProvider);
-
             // Make post request
             HttpPost httpPost = new HttpPost(urls[0]);
 
