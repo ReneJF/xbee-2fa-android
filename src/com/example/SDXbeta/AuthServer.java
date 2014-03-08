@@ -27,7 +27,7 @@ import java.security.cert.X509Certificate;
  * Created by sahil on 3/3/14.
  */
 public class AuthServer {
-    public static final String SERVER_URL = "https://172.22.194.45:8000/";
+    public static final String SERVER_URL = "https://spinningarrow.no-ip.biz:8000/";
 
     public DefaultHttpClient getNewHttpClient() {
         try {
