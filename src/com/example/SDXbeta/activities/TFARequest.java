@@ -11,6 +11,7 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 import com.example.SDXbeta.AuthServer;
+import com.example.SDXbeta.PacketHelper;
 import com.example.SDXbeta.R;
 import com.example.SDXbeta.SimpleCrypto;
 import com.example.xbee_i2r.*;
@@ -61,68 +62,35 @@ public class TFARequest extends Activity {
             public void onReceive(Context context, Intent intent) {
                 responseData = intent.getIntArrayExtra("responseData");
 
-                // Decrypt data
+                // Convert integers to bytes
                 byte[] byteResponseData = new byte[responseData.length];
                 for (int i = 0; i < byteResponseData.length; i++) {
                     byteResponseData[i] = (byte) responseData[i];
                 }
 
-                try {
-//                    byteResponseData = SimpleCrypto.decrypt(SimpleCrypto.toByte(authKey), byteResponseData);
+                // Get Fio nonce
+                byte[] hexFioNonce = { byteResponseData[10], byteResponseData[11] };
+                nonceNode = SimpleCrypto.toHex(hexFioNonce);
 
-                    Boolean verified = true;
+                // Get timestamp
+                byte[] hexTimestamp = { byteResponseData[14], byteResponseData[15], byteResponseData[16], byteResponseData[17] };
 
-                    // Get node id and compare
-                    byte[] hexNodeId = { (byte) byteResponseData[0], (byte) byteResponseData[1] };
-                    String nodeId = SimpleCrypto.toHex(hexNodeId);
-                    nodeId = nodeId.replaceAll("^0+", "");
+                // If verified is still true, go ahead
+                if (PacketHelper.isValidPacket(byteResponseData, xbeeNodeId, deviceId, nonce)) {
+                    toast = Toast.makeText(getBaseContext(), "Verified by node, requesting server for 2FA key", Toast.LENGTH_LONG);
 
-                    if (!xbeeNodeId.toUpperCase().equals(nodeId)) {
-                        verified = false;
-                    }
-
-                    // Get Device ID and compare
-                    byte[] hexDeviceId = new byte[8];
-                    for (int i = 0; i < hexDeviceId.length; i++) {
-                        hexDeviceId[i] = (byte) byteResponseData[i + 2];
-                    }
-
-                    if (!deviceId.toUpperCase().equals(SimpleCrypto.toHex(hexDeviceId))) {
-                        verified = false;
-                    }
-
-                    // Get nonce and compare
-                    byte[] hexNonce = { (byte) byteResponseData[12], (byte) byteResponseData[13] };
-
-                    if (!nonce.toUpperCase().equals(SimpleCrypto.toHex(hexNonce))) {
-                        verified = false;
-                    }
-
-                    // Get Fio nonce
-                    byte[] hexFioNonce = { (byte) byteResponseData[10], (byte) byteResponseData[11] };
-                    nonceNode = SimpleCrypto.toHex(hexFioNonce);
-
-                    // Get timestamp
-                    byte[] hexTimestamp = { (byte) byteResponseData[14], (byte) byteResponseData[15], (byte) byteResponseData[16], (byte) byteResponseData[17] };
-
-                    // If verified is still true, go ahead
-                    if (verified) {
-                        toast = Toast.makeText(getBaseContext(), "Verified by node, requesting server for 2FA key", Toast.LENGTH_LONG);
-
-                        // Request for 2FA token
-                        new RequestTokenTask().execute(AuthServer.SERVER_URL + "token-requests");
-                    }
-
-                    else {
-                        toast = Toast.makeText(getBaseContext(), "Node verification failed", Toast.LENGTH_SHORT);
-                    }
-
-                    toast.show();
-                } catch (Exception e) {
-                    e.printStackTrace();
+                    // Request for 2FA token
+                    new RequestTokenTask().execute(AuthServer.SERVER_URL + "token-requests");
                 }
+
+                else {
+                    toast = Toast.makeText(getBaseContext(), "Node verification failed", Toast.LENGTH_SHORT);
+                }
+
+                toast.show();
             }
         };
+
         registerReceiver(receiver,filter);
     }
 
@@ -297,7 +265,7 @@ public class TFARequest extends Activity {
                         stringBuilder.append(line);
                     }
 
-                    JSONObject nodeObject = new JSONObject(stringBuilder.toString());
+//                    JSONObject nodeObject = new JSONObject(stringBuilder.toString());
 
 //                    authKey = nodeObject.getString("nodeId");
                     return true;
@@ -308,9 +276,9 @@ public class TFARequest extends Activity {
             }
             catch (IOException e) {
                 e.printStackTrace();
-            } catch (JSONException e) {
+            } /*catch (JSONException e) {
                 e.printStackTrace();
-            }
+            }*/
 
             return false;
         }
