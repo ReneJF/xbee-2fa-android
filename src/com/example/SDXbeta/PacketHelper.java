@@ -68,19 +68,19 @@ public class PacketHelper {
 
     // Create a packet with the token received from the server
     // Format:
-    // * [2 bytes] Token
+    // * [3 bytes] Token
     // * [8 bytes] Device ID
     // * [2 bytes] NodeId
     // * [2 bytes] Nonce(android) XOR Nonce(node)
     // * [4 bytes] Timestamp
-    // Total: 18 bytes
+    // Total: 19 bytes
     public static byte[] create2FATokenPacket(String token, String deviceId, String xbeeNodeId, String nonceSelf, String nonceNode, String authKey) {
 
         // Convert the node Id to four characters (zero-pad if necessary) so that it can be easily converted to 2 bytes
         xbeeNodeId = String.format("%04d", Integer.parseInt(xbeeNodeId, 16));
 
         // Get the current time
-        String timestamp = Long.toHexString(System.currentTimeMillis() / 1000);;
+        String timestamp = Long.toHexString(System.currentTimeMillis() / 1000);
 
         byte[] hexNonceSelf = SimpleCrypto.toByte(nonceSelf);
         byte[] hexNonceNode = SimpleCrypto.toByte(nonceNode);
@@ -90,7 +90,7 @@ public class PacketHelper {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(32);
 
         try {
-            byteArrayOutputStream.write(SimpleCrypto.toByte(token)); // 2 bytes
+            byteArrayOutputStream.write(SimpleCrypto.toByte(token)); // 3 bytes
             byteArrayOutputStream.write(SimpleCrypto.toByte(deviceId)); // 8 bytes
             byteArrayOutputStream.write(SimpleCrypto.toByte(xbeeNodeId)); // 2 bytes
             byteArrayOutputStream.write(hexNonceXOR); // 2 bytes

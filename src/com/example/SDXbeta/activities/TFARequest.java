@@ -273,6 +273,7 @@ public class TFARequest extends Activity {
 
                 // Start new activity, passing it the details
                 Intent intent = new Intent(getBaseContext(), TFAToken.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
                 intent.putExtra("authKey", authKey);
                 intent.putExtra("deviceId", deviceId);
                 intent.putExtra("nodeId", xbeeNodeId);

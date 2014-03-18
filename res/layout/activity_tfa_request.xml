@@ -14,7 +14,7 @@
     <EditText
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:id="@+id/editTextNodeId" android:hint="Node ID"/>
+            android:id="@+id/editTextNodeId" android:hint="Node ID" android:inputType="numberSigned"/>
     <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
