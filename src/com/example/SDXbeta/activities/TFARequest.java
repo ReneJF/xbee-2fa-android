@@ -34,9 +34,6 @@ import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Created by sahil on 3/3/14.
- */
 public class TFARequest extends Activity {
     EditText editTextNodeId;
     String username;
@@ -112,67 +109,37 @@ public class TFARequest extends Activity {
         // Create an HttpClient
         httpClient = new AuthServer().getNewHttpClient(username, password);
 
+        // Get hex string of device identifier
+        deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID);
+
         ftDev = InitializeDevice.getDevice();
     }
 
     public void onRequestKeyClicked(View view) {
         editTextNodeId = (EditText) findViewById(R.id.editTextNodeId);
         xbeeNodeId = editTextNodeId.getText().toString();
-        new RequestKeyTask().execute(AuthServer.SERVER_URL + "keys/" + xbeeNodeId);
+        new RequestKeyTask().execute(xbeeNodeId);
     }
 
+    // Send an encrypted packet to the node requesting permission for 2FA
     public void onRequest2FAClicked(View view) {
-        // Request format (encrypted)
-        // Nonce
-        // IMEI/device ID
-        // NodeId
-        // timestamp
 
         try {
-            nonce = Short.toString((short) Math.floor(Math.random() * Short.MAX_VALUE));
-            deviceId = android.provider.Settings.Secure.getString(getContentResolver(), android.provider.Settings.Secure.ANDROID_ID); // Returns hex string of device identifier
-            Short nodeId = Short.parseShort(xbeeNodeId, 16);
-            String timestamp = Long.toHexString(System.currentTimeMillis() / 1000);
-
-            byte[] hexNonce = SimpleCrypto.toByte(nonce); // 2 bytes
-            byte[] hexDeviceId = SimpleCrypto.toByte(deviceId); // 8 bytes
-            byte[] hexNodeId = { (byte) ((nodeId >> 8) & 0xFF), (byte) (nodeId & 0xFF) }; // 2 bytes
-            byte[] hexTimestamp = SimpleCrypto.toByte(timestamp); // 4 bytes
-
-            byte[] result = new byte[hexNonce.length + hexDeviceId.length + hexNodeId.length + hexTimestamp.length];
-
-            nonce = SimpleCrypto.toHex(hexNonce);
-
-            System.arraycopy(hexNonce, 0, result, 0, hexNonce.length);
-            System.arraycopy(hexDeviceId, 0, result, hexNonce.length, hexDeviceId.length);
-            System.arraycopy(hexNodeId, 0, result, hexNonce.length + hexDeviceId.length, hexNodeId.length);
-            System.arraycopy(hexTimestamp, 0, result, hexNonce.length + hexDeviceId.length + hexNodeId.length, hexTimestamp.length);
-
-            result = SimpleCrypto.encrypt(SimpleCrypto.toByte(authKey), result);
-
-            int[] payload = new int[result.length];
-
-            for (int i = 0; i < result.length; i++) {
-                payload[i] = result[i];
-            }
+            byte[] result = PacketHelper.create2FARequestPacket(deviceId, xbeeNodeId, authKey);
 
             XBeeAddress16 destination = new XBeeAddress16(0xFF, 0xFF);
 
-            TxRequest16 request = new TxRequest16(destination, payload);
+            TxRequest16 request = new TxRequest16(destination, PacketHelper.createPayload(result));
             XBeePacket packet = new XBeePacket(request.getFrameData());
 
-            byte[] outData = new byte[packet.getIntegerArray().length];
-
-            for(int k = 0; k < packet.getIntegerArray().length; k++){
-                outData[k] = (byte) (packet.getIntegerArray()[k] & 0xff);
-            }
+            byte[] outData = PacketHelper.createOutData(packet);
 
             synchronized(ftDev){
-                if(ftDev.isOpen() == false){
+                if (ftDev.isOpen() == false) {
                     return;
                 }
 
-                ftDev.write(outData,outData.length);
+                ftDev.write(outData, outData.length);
             }
         }
 
@@ -181,15 +148,17 @@ public class TFARequest extends Activity {
         }
     }
 
+    // Requests the server for the AES encryption key of the specified node
     private class RequestKeyTask extends AsyncTask<String, Void, String> {
 
-        protected String doInBackground(String... urls) {
-            HttpGet httpGet = new HttpGet(urls[0]);
+        protected String doInBackground(String... nodeIdList) {
+            HttpGet httpGet = new HttpGet(AuthServer.SERVER_URL + "keys/" + nodeIdList[0]);
 
             try {
                 HttpResponse response = httpClient.execute(httpGet);
                 Integer statusCode = response.getStatusLine().getStatusCode();
 
+                // Success
                 if (statusCode == 200) {
                     // Get response content
                     String line;
@@ -227,6 +196,7 @@ public class TFARequest extends Activity {
                 toast = Toast.makeText(getBaseContext(), "Key: " + authKey, Toast.LENGTH_SHORT);
 
                 // Enable the request 2FA button
+                // User should click this triggering the onRequest2FAClicked handler
                 findViewById(R.id.requestNode2FA).setEnabled(true);
             }
 
