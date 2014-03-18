@@ -1,15 +1,10 @@
 package com.example.SDXbeta;
 
-import android.util.Log;
 import com.example.xbee_i2r.XBeePacket;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Random;
 
-/**
- * Created by sahil on 10/3/14.
- */
 public class PacketHelper {
 
     public static int[] createPayload(byte[] packet) {
@@ -40,13 +35,7 @@ public class PacketHelper {
     // * [2 bytes] NodeId
     // * [4 bytes] timestamp
     // Total: 16 bytes
-    public static byte[] create2FARequestPacket(String deviceId, String xbeeNodeId, String authKey) {
-
-        // Create a 4-digit hex nonce string
-        Random random = new Random();
-        String nonce = Integer.toString(random.nextInt((9999 - 1000) + 1) + 1000);
-
-        Log.d("NONCE", nonce);
+    public static byte[] create2FARequestPacket(String nonce, String deviceId, String xbeeNodeId, String authKey) {
 
         // Convert the node Id to four characters (zero-pad if necessary) so that it can be easily converted to 2 bytes
         xbeeNodeId = String.format("%04d", Integer.parseInt(xbeeNodeId, 16));

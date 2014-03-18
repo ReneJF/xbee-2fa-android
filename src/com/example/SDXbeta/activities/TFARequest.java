@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.AsyncTask;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
@@ -33,6 +34,7 @@ import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 
 public class TFARequest extends Activity {
     EditText editTextNodeId;
@@ -122,10 +124,18 @@ public class TFARequest extends Activity {
     }
 
     // Send an encrypted packet to the node requesting permission for 2FA
+    // After the request is sent, the node should send a response to the mobile device; this is handled by the
+    // BroadcastReceiver created in onStart
     public void onRequest2FAClicked(View view) {
 
+        // Create a 4-digit hex nonce string
+        Random random = new Random();
+        nonce = Integer.toString(random.nextInt((9999 - 1000) + 1) + 1000);
+
+        Log.d("NONCE", nonce);
+
         try {
-            byte[] result = PacketHelper.create2FARequestPacket(deviceId, xbeeNodeId, authKey);
+            byte[] result = PacketHelper.create2FARequestPacket(nonce, deviceId, xbeeNodeId, authKey);
 
             XBeeAddress16 destination = new XBeeAddress16(0xFF, 0xFF);
 
