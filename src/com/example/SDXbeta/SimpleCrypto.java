@@ -42,6 +42,9 @@ public class SimpleCrypto {
         return raw;
     }
 
+    public static byte[] encrypt(String authKey, byte[] clear) throws Exception {
+        return encrypt(toByte(authKey), clear);
+    }
 
     public static byte[] encrypt(byte[] raw, byte[] clear) throws Exception {
         SecretKeySpec skeySpec = new SecretKeySpec(raw, "AES");

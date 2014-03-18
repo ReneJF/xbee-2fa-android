@@ -78,12 +78,12 @@ public class TFARequest extends Activity {
                     // Get timestamp
                     byte[] hexTimestamp = { byteResponseData[14], byteResponseData[15], byteResponseData[16], byteResponseData[17] };
 
-                    // If verified is still true, go ahead
+                    // Check if the packet is valid (node ID, device ID, nonce)
                     if (PacketHelper.isValidPacket(byteResponseData, xbeeNodeId, deviceId, nonce)) {
                         toast = Toast.makeText(getBaseContext(), "Verified by node, requesting server for 2FA key", Toast.LENGTH_LONG);
 
-                        // Request for 2FA token
-                        new RequestTokenTask().execute(AuthServer.SERVER_URL + "token-requests");
+                        // Request the server for a 2FA token
+                        new RequestTokenTask().execute();
                     }
 
                     else {
@@ -222,11 +222,12 @@ public class TFARequest extends Activity {
     }
 
     // Request server for 2FA token
+    // The response is received after the email is sent
     private class RequestTokenTask extends AsyncTask<String, Void, Boolean> {
 
         protected Boolean doInBackground(String... urls) {
             // Make post request
-            HttpPost httpPost = new HttpPost(urls[0]);
+            HttpPost httpPost = new HttpPost(AuthServer.SERVER_URL + "token-requests");
 
             List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>();
             nameValuePairs.add(new BasicNameValuePair("nodeId", xbeeNodeId));
@@ -252,9 +253,6 @@ public class TFARequest extends Activity {
                         stringBuilder.append(line);
                     }
 
-//                    JSONObject nodeObject = new JSONObject(stringBuilder.toString());
-
-//                    authKey = nodeObject.getString("nodeId");
                     return true;
                 }
             }
@@ -263,9 +261,7 @@ public class TFARequest extends Activity {
             }
             catch (IOException e) {
                 e.printStackTrace();
-            } /*catch (JSONException e) {
-                e.printStackTrace();
-            }*/
+            }
 
             return false;
         }
