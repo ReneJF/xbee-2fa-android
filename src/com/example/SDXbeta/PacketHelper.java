@@ -66,12 +66,53 @@ public class PacketHelper {
         return null;
     }
 
+    // Create a packet with the token received from the server
+    // Format:
+    // * [2 bytes] Token
+    // * [8 bytes] Device ID
+    // * [2 bytes] NodeId
+    // * [2 bytes] Nonce(android) XOR Nonce(node)
+    // * [4 bytes] Timestamp
+    // Total: 18 bytes
+    public static byte[] create2FATokenPacket(String token, String deviceId, String xbeeNodeId, String nonceSelf, String nonceNode, String authKey) {
+
+        // Convert the node Id to four characters (zero-pad if necessary) so that it can be easily converted to 2 bytes
+        xbeeNodeId = String.format("%04d", Integer.parseInt(xbeeNodeId, 16));
+
+        // Get the current time
+        String timestamp = Long.toHexString(System.currentTimeMillis() / 1000);;
+
+        byte[] hexNonceSelf = SimpleCrypto.toByte(nonceSelf);
+        byte[] hexNonceNode = SimpleCrypto.toByte(nonceNode);
+
+        byte[] hexNonceXOR = { (byte) (hexNonceSelf[0] ^ hexNonceNode[0]), (byte) (hexNonceSelf[1] ^ hexNonceNode[1]) };
+
+        ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(32);
+
+        try {
+            byteArrayOutputStream.write(SimpleCrypto.toByte(token)); // 2 bytes
+            byteArrayOutputStream.write(SimpleCrypto.toByte(deviceId)); // 8 bytes
+            byteArrayOutputStream.write(SimpleCrypto.toByte(xbeeNodeId)); // 2 bytes
+            byteArrayOutputStream.write(hexNonceXOR); // 2 bytes
+            byteArrayOutputStream.write(SimpleCrypto.toByte(timestamp)); // 4 bytes
+
+            byteArrayOutputStream.write(new byte[32 - byteArrayOutputStream.size()]); // for padding
+
+            byte[] result = byteArrayOutputStream.toByteArray();
+
+            result = SimpleCrypto.encrypt(authKey, result);
+
+            return result;
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
+    }
+
     public static Boolean isValidPacket(byte[] byteResponseData, String xbeeNodeId, String deviceId, String nonce) {
 
         try {
-            // Decrypt data
-//                    byteResponseData = SimpleCrypto.decrypt(SimpleCrypto.toByte(authKey), byteResponseData);
-
             Boolean verified = true;
 
             // Get node id and compare
