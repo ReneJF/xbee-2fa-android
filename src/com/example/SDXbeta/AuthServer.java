@@ -25,9 +25,6 @@ import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
-/**
- * Created by sahil on 3/3/14.
- */
 public class AuthServer {
     public static final String SERVER_URL = "https://spinningarrow.no-ip.biz:8000/";
 
@@ -61,8 +58,8 @@ public class AuthServer {
 
         // Set username and password for basic auth
         defaultHttpClient.getCredentialsProvider().setCredentials(
-                new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
-                new UsernamePasswordCredentials(username, password)
+            new AuthScope(AuthScope.ANY_HOST, AuthScope.ANY_PORT),
+            new UsernamePasswordCredentials(username, password)
         );
 
         return defaultHttpClient;

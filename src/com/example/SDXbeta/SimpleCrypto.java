@@ -17,6 +17,7 @@ import javax.crypto.spec.SecretKeySpec;
  * @author ferenc.hechler
  */
 public class SimpleCrypto {
+    private static final String CIPHER_TRANSFORMATION = "AES/ECB/NoPadding";
 
     public static String encrypt(String seed, String cleartext) throws Exception {
         byte[] rawKey = getRawKey(seed.getBytes());
@@ -44,15 +45,19 @@ public class SimpleCrypto {
 
     public static byte[] encrypt(byte[] raw, byte[] clear) throws Exception {
         SecretKeySpec skeySpec = new SecretKeySpec(raw, "AES");
-        Cipher cipher = Cipher.getInstance("AES");
+        Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
         cipher.init(Cipher.ENCRYPT_MODE, skeySpec);
         byte[] encrypted = cipher.doFinal(clear);
         return encrypted;
     }
 
+    public static byte[] decrypt(String authKey, byte[] encrypted) throws Exception {
+        return decrypt(toByte(authKey), encrypted);
+    }
+
     public static byte[] decrypt(byte[] raw, byte[] encrypted) throws Exception {
         SecretKeySpec skeySpec = new SecretKeySpec(raw, "AES");
-        Cipher cipher = Cipher.getInstance("AES");
+        Cipher cipher = Cipher.getInstance(CIPHER_TRANSFORMATION);
         cipher.init(Cipher.DECRYPT_MODE, skeySpec);
         byte[] decrypted = cipher.doFinal(encrypted);
         return decrypted;

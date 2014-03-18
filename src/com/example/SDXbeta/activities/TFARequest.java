@@ -67,26 +67,33 @@ public class TFARequest extends Activity {
                     byteResponseData[i] = (byte) responseData[i];
                 }
 
-                // Get Fio nonce
-                byte[] hexFioNonce = { byteResponseData[10], byteResponseData[11] };
-                nonceNode = SimpleCrypto.toHex(hexFioNonce);
+                // Decrypt the data
+                try {
+                    byteResponseData = SimpleCrypto.decrypt(authKey, byteResponseData);
 
-                // Get timestamp
-                byte[] hexTimestamp = { byteResponseData[14], byteResponseData[15], byteResponseData[16], byteResponseData[17] };
+                    // Get Fio nonce
+                    byte[] hexFioNonce = { byteResponseData[10], byteResponseData[11] };
+                    nonceNode = SimpleCrypto.toHex(hexFioNonce);
 
-                // If verified is still true, go ahead
-                if (PacketHelper.isValidPacket(byteResponseData, xbeeNodeId, deviceId, nonce)) {
-                    toast = Toast.makeText(getBaseContext(), "Verified by node, requesting server for 2FA key", Toast.LENGTH_LONG);
+                    // Get timestamp
+                    byte[] hexTimestamp = { byteResponseData[14], byteResponseData[15], byteResponseData[16], byteResponseData[17] };
 
-                    // Request for 2FA token
-                    new RequestTokenTask().execute(AuthServer.SERVER_URL + "token-requests");
+                    // If verified is still true, go ahead
+                    if (PacketHelper.isValidPacket(byteResponseData, xbeeNodeId, deviceId, nonce)) {
+                        toast = Toast.makeText(getBaseContext(), "Verified by node, requesting server for 2FA key", Toast.LENGTH_LONG);
+
+                        // Request for 2FA token
+                        new RequestTokenTask().execute(AuthServer.SERVER_URL + "token-requests");
+                    }
+
+                    else {
+                        toast = Toast.makeText(getBaseContext(), "Node verification failed", Toast.LENGTH_SHORT);
+                    }
+
+                    toast.show();
+                } catch (Exception e) {
+                    e.printStackTrace();
                 }
-
-                else {
-                    toast = Toast.makeText(getBaseContext(), "Node verification failed", Toast.LENGTH_SHORT);
-                }
-
-                toast.show();
             }
         };
 
