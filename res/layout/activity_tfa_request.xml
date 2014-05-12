@@ -9,20 +9,30 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceLarge"
-            android:text="Request"
-            android:id="@+id/textView"/>
-    <EditText
-            android:layout_width="wrap_content"
+            android:text="Choose Node"
+            android:id="@+id/textView" android:layout_margin="@dimen/activity_horizontal_margin"/>
+    <TextView
+            android:layout_width="220dp"
             android:layout_height="wrap_content"
-            android:id="@+id/editTextNodeId" android:hint="Node ID" android:inputType="numberSigned"/>
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:text="To establish a two-factor authenticated secure channel, choose a node below"
+            android:id="@+id/textView2" android:layout_gravity="center_horizontal"
+            android:layout_margin="@dimen/activity_horizontal_margin" android:textAlignment="center"/>
+    <EditText
+            android:layout_width="220dp"
+            android:layout_height="wrap_content"
+            android:id="@+id/editTextNodeId" android:hint="Node ID" android:inputType="numberSigned"
+            android:layout_margin="@dimen/activity_horizontal_margin"/>
     <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Request server for key"
-            android:id="@+id/requestKey" android:enabled="true" android:onClick="onRequestKeyClicked"/>
+            android:id="@+id/requestKey" android:enabled="true" android:onClick="onRequestKeyClicked"
+            android:layout_margin="@dimen/activity_horizontal_margin"/>
     <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Request node for 2FA"
-            android:id="@+id/requestNode2FA" android:enabled="false" android:onClick="onRequest2FAClicked"/>
+            android:id="@+id/requestNode2FA" android:enabled="false" android:onClick="onRequest2FAClicked"
+            android:layout_margin="@dimen/activity_horizontal_margin"/>
 </LinearLayout>
