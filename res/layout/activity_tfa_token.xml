@@ -3,21 +3,30 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:orientation="vertical"
               android:layout_width="match_parent"
-              android:layout_height="match_parent">
+              android:layout_height="match_parent" android:gravity="center_vertical|center_horizontal">
 
     <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceLarge"
-            android:text="Enter 2FA token"
-            android:id="@+id/textView"/>
-    <EditText
-            android:layout_width="124dp"
+            android:text="Authentication"
+            android:id="@+id/textView" android:layout_margin="@dimen/activity_horizontal_margin"/>
+    <TextView
+            android:layout_width="220dp"
             android:layout_height="wrap_content"
-            android:id="@+id/editTextToken" android:hint="Token" android:inputType="numberSigned"/>
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:text="Please enter the authentication token sent to you via email. It may take up to a minute for the token to arrive"
+            android:id="@+id/textView2" android:layout_gravity="center_horizontal"
+            android:layout_margin="@dimen/activity_horizontal_margin"/>
+    <EditText
+            android:layout_width="220dp"
+            android:layout_height="wrap_content"
+            android:id="@+id/editTextToken" android:hint="Token" android:inputType="numberSigned"
+            android:layout_margin="@dimen/activity_horizontal_margin"/>
     <Button
-            android:layout_width="wrap_content"
+            android:layout_width="220dp"
             android:layout_height="wrap_content"
             android:text="Submit"
-            android:id="@+id/submitToken" android:onClick="onSubmitTokenClicked"/>
+            android:id="@+id/submitToken" android:onClick="onSubmitTokenClicked"
+            android:layout_margin="@dimen/activity_horizontal_margin"/>
 </LinearLayout>

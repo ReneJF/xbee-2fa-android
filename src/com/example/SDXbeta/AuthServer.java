@@ -26,7 +26,7 @@ import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 
 public class AuthServer {
-    public static final String SERVER_URL = "https://spinningarrow.no-ip.biz:8000/";
+    public static final String SERVER_URL = "https://ec2-54-186-213-97.us-west-2.compute.amazonaws.com:8080/";
 
     public DefaultHttpClient getNewHttpClient() {
         try {

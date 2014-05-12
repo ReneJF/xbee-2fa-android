@@ -3,27 +3,37 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
               android:orientation="vertical"
               android:layout_width="match_parent"
-              android:layout_height="match_parent">
+              android:layout_height="match_parent" android:gravity="center_vertical|center_horizontal">
 
     <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:textAppearance="?android:attr/textAppearanceLarge"
-            android:text="Login to server"
-            android:id="@+id/textView"/>
-    <EditText
-            android:layout_width="208dp"
+            android:text="Login"
+            android:id="@+id/textView" android:layout_margin="@dimen/activity_horizontal_margin"/>
+    <TextView
+            android:layout_width="220dp"
             android:layout_height="wrap_content"
-            android:id="@+id/editTextUsername" android:hint="Username"/>
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:text="Please enter your username and password to log in to the application"
+            android:id="@+id/textView2" android:layout_gravity="center_horizontal"
+            android:layout_margin="@dimen/activity_horizontal_margin"/>
     <EditText
-            android:layout_width="wrap_content"
+            android:layout_width="220dp"
+            android:layout_height="wrap_content"
+            android:id="@+id/editTextUsername" android:hint="Username" android:layout_gravity="center"
+            android:layout_margin="@dimen/activity_horizontal_margin"/>
+    <EditText
+            android:layout_width="220dp"
             android:layout_height="wrap_content"
             android:inputType="textPassword"
             android:ems="10"
-            android:id="@+id/editTextPassword" android:hint="Password"/>
+            android:id="@+id/editTextPassword" android:hint="Password" android:layout_gravity="center"
+            android:layout_margin="@dimen/activity_horizontal_margin"/>
     <Button
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Submit"
-            android:id="@+id/submit" android:onClick="onSubmitClicked"/>
+            android:id="@+id/submit" android:onClick="onSubmitClicked" android:layout_gravity="center"
+            android:layout_margin="@dimen/activity_horizontal_margin"/>
 </LinearLayout>

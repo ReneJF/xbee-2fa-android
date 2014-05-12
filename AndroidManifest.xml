@@ -82,6 +82,8 @@
         <activity android:name=".activities.TFALogin"/>
         <activity android:name=".activities.TFARequest"/>
         <activity android:name=".activities.TFAToken"/>
+        <activity android:name=".activities.TFAFiles"/>
+        <activity android:name=".activities.TFAFileDetails"/>
 
         <service android:name="com.example.xbee_i2r.ReadService"></service>
         <service android:name="com.example.xbee_i2r.BatteryService"></service>
