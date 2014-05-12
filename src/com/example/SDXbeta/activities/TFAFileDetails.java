@@ -1,6 +1,8 @@
 package com.example.SDXbeta.activities;
 
+import android.annotation.TargetApi;
 import android.app.Activity;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.TextView;
@@ -16,7 +18,6 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import java.io.ByteArrayOutputStream;
 import java.nio.charset.Charset;
 
 /**
@@ -26,6 +27,7 @@ import java.nio.charset.Charset;
 public class TFAFileDetails extends Activity {
     FT_Device ftDev;
     String fileData;
+    String authKey;
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -36,6 +38,7 @@ public class TFAFileDetails extends Activity {
         try {
             JSONArray files = new JSONArray(getIntent().getStringExtra("files"));
             int position = getIntent().getIntExtra("position", 0);
+            authKey = getIntent().getStringExtra("authKey");
 
             JSONObject fileObject = files.getJSONObject(position);
 
@@ -53,6 +56,7 @@ public class TFAFileDetails extends Activity {
         }
     }
 
+    @TargetApi(Build.VERSION_CODES.GINGERBREAD)
     public void onSendFilesClicked(View view) {
         Toast toast = Toast.makeText(getBaseContext(), fileData, Toast.LENGTH_SHORT);
         toast.show();
@@ -72,6 +76,8 @@ public class TFAFileDetails extends Activity {
                 for (int i = 0; i < fileBytes.length; i++) {
                     result[i + 2] = fileBytes[i];
                 }
+
+//                result = SimpleCrypto.encrypt(authKey, result);
 
                 XBeeAddress16 destination = new XBeeAddress16(0xFF, 0xFF);
 

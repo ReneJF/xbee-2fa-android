@@ -26,6 +26,7 @@ import java.util.List;
 public class TFAFiles extends Activity {
     private FT_Device ftDev;
     String intentFiles;
+    String authKey;
 
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -38,6 +39,8 @@ public class TFAFiles extends Activity {
         // Get data from intent
         try {
             intentFiles = getIntent().getStringExtra("files");
+            authKey = getIntent().getStringExtra("authKey");
+
             JSONArray files = new JSONArray(intentFiles);
             for (int i = 0; i < files.length(); i++) {
                 JSONObject fileObject = files.getJSONObject(i);
@@ -50,21 +53,12 @@ public class TFAFiles extends Activity {
             listView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
                 @Override
                 public void onItemClick(AdapterView<?> adapterView, final View view, int position, long id) {
-//                    final String item = (String) adapterView.getItemAtPosition(position);
                     Intent intent = new Intent(getBaseContext(), TFAFileDetails.class);
                     intent.putExtra("files", intentFiles);
                     intent.putExtra("position", position);
+                    intent.putExtra("authKey", authKey);
 
                     startActivity(intent);
-
-//                    view.animate().setDuration(2000).alpha(0).withEndAction(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            list.remove(item);
-//                            adapter.notifyDataSetChanged();
-//                            view.setAlpha(1);
-//                        }
-//                    });
                 }
             });
 

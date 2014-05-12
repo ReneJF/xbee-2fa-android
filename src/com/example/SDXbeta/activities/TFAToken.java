@@ -16,22 +16,13 @@ import com.example.SDXbeta.R;
 import com.example.xbee_i2r.*;
 import com.ftdi.j2xx.FT_Device;
 import org.apache.http.HttpResponse;
-import org.apache.http.NameValuePair;
 import org.apache.http.client.ClientProtocolException;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
 import org.apache.http.client.methods.HttpGet;
-import org.apache.http.client.methods.HttpPost;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.message.BasicNameValuePair;
-import org.json.JSONArray;
-import org.json.JSONException;
 
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.List;
 
 public class TFAToken extends Activity {
     EditText editTextToken;
@@ -55,12 +46,6 @@ public class TFAToken extends Activity {
             public void onReceive(Context context, Intent intent) {
                 responseData = intent.getIntArrayExtra("responseData");
 
-//                // Convert integers to bytes
-//                byte[] byteResponseData = new byte[responseData.length];
-//                for (int i = 0; i < byteResponseData.length; i++) {
-//                    byteResponseData[i] = (byte) responseData[i];
-//                }
-
                 if (responseData[2] == 0xFF && responseData[3] == 0xFF) {
                     toast = Toast.makeText(getBaseContext(), "2FA Authentication cleared!", Toast.LENGTH_LONG);
 
@@ -77,6 +62,12 @@ public class TFAToken extends Activity {
         };
 
         registerReceiver(receiver,filter);
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        unregisterReceiver(receiver);
     }
 
     public void onCreate(Bundle savedInstanceState) {
@@ -158,16 +149,13 @@ public class TFAToken extends Activity {
             if (result != null) {
                 toast = Toast.makeText(getBaseContext(), "File data received", Toast.LENGTH_SHORT);
                 toast.show();
-//
+
                 // Start new activity, passing it the details
                 Intent intent = new Intent(getBaseContext(), TFAFiles.class);
                 intent.addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
                 intent.putExtra("files", result);
-//                intent.putExtra("deviceId", deviceId);
-//                intent.putExtra("nodeId", xbeeNodeId);
-//                intent.putExtra("nonceSelf", nonce);
-//                intent.putExtra("nonceNode", nonceNode);
-//
+                intent.putExtra("authKey", authKey);
+
                 startActivity(intent);
             }
 
